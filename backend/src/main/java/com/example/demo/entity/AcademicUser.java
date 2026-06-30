@@ -2,8 +2,11 @@ package com.example.demo.entity;
 
 import com.example.demo.enums.UserRole;
 import com.example.demo.enums.UserStatus;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Entity
 @Table(name = "academic_users")
 public class AcademicUser {
@@ -12,25 +15,32 @@ public class AcademicUser {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(name = "password", nullable = false)
     private String password;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     private UserRole role;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(name = "department")
     private String department;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private UserStatus status;

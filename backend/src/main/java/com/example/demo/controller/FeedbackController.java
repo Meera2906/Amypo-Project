@@ -1,10 +1,14 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.FeedbackResponseDto;
 import com.example.demo.entity.MentorFeedback;
 import com.example.demo.service.FeedbackService;
+import jakarta.transaction.Transactional;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/feedback")
@@ -16,19 +20,24 @@ public class FeedbackController {
         this.feedbackService = feedbackService;
     }
 
+    @Transactional
     @PostMapping
-    public ResponseEntity<MentorFeedback> submitFeedback(
+    public ResponseEntity<FeedbackResponseDto> submitFeedback(
             @RequestParam Long learnerId,
             @RequestParam Long sessionId,
             @RequestParam Integer rating,
             @RequestParam String comment) {
         MentorFeedback feedback = feedbackService.submitFeedback(learnerId, sessionId, rating, comment);
-        return ResponseEntity.ok(feedback);
+        return ResponseEntity.ok(FeedbackResponseDto.from(feedback));
     }
 
+    @Transactional
     @GetMapping
-    public ResponseEntity<List<MentorFeedback>> getAllFeedback() {
+    public ResponseEntity<List<FeedbackResponseDto>> getAllFeedback() {
         List<MentorFeedback> feedbackList = feedbackService.getAllFeedback();
-        return ResponseEntity.ok(feedbackList);
+        List<FeedbackResponseDto> dtos = feedbackList.stream()
+                .map(FeedbackResponseDto::from)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 }

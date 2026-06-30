@@ -1,11 +1,14 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.EnrollmentResponseDto;
 import com.example.demo.entity.SessionEnrollment;
 import com.example.demo.service.EnrollmentWorkflowService;
 import com.example.demo.repository.SessionEnrollmentRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/enrollments")
@@ -20,10 +23,14 @@ public class EnrollmentController {
         this.sessionEnrollmentRepository = sessionEnrollmentRepository;
     }
 
+    @Transactional
     @GetMapping("/my")
-    public ResponseEntity<List<SessionEnrollment>> getMyEnrollments(@RequestParam Long learnerId) {
+    public ResponseEntity<List<EnrollmentResponseDto>> getMyEnrollments(@RequestParam Long learnerId) {
         List<SessionEnrollment> enrollments = sessionEnrollmentRepository.findByLearnerId(learnerId);
-        return ResponseEntity.ok(enrollments);
+        List<EnrollmentResponseDto> dtos = enrollments.stream()
+                .map(EnrollmentResponseDto::from)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     @PostMapping("/enroll")
