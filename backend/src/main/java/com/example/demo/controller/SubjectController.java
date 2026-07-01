@@ -51,9 +51,7 @@ public class SubjectController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> delete(@PathVariable Long id) {
-        StudySubject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subject not found"));
-        subjectRepository.delete(subject);
+        subjectRepository.deleteById(id);
         return ResponseEntity.ok("Subject deleted");
     }
 }

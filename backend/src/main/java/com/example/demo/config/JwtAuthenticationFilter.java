@@ -31,7 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        
+
         String authHeader = request.getHeader("Authorization");
         String token = null;
         String email = null;
@@ -54,13 +54,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if ("APPROVED".equals(user.getStatus().name())) {
                     List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                     authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
-                    
+
                     if ("ACADEMIC_ADMIN".equals(user.getRole().name())) {
                         authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
                     } else if ("SUPPORT_AGENT".equals(user.getRole().name())) {
                         authorities.add(new SimpleGrantedAuthority("ROLE_SUPPORT"));
                     }
-                    
+
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             user, null, authorities);
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
