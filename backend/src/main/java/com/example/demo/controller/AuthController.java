@@ -11,19 +11,19 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
     
-    private final AcademicAuthService authService;
+    private final AcademicAuthService academicAuthService;
 
-    public AuthController(AcademicAuthService authService) {
-        this.authService = authService;
+    public AuthController(AcademicAuthService academicAuthService) {
+        this.academicAuthService = academicAuthService;
     }
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDto> login(@RequestBody AuthRequestDto request) {
-        return ResponseEntity.ok(authService.login(request));
+        return ResponseEntity.ok(academicAuthService.login(request));
     }
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDto> register(@RequestBody RegisterDto request) {
-        return ResponseEntity.ok(authService.register(request));
+        return ResponseEntity.ok(academicAuthService.register(request));
     }
 }
