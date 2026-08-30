@@ -10,3 +10,13 @@ export const cancelEnrollment = (learnerId, sessionId) =>
   api.delete('/enrollments/cancel', { params: { learnerId, sessionId } })
 
 export const discontinue = cancelEnrollment
+
+const enrollmentService = {
+  getMyEnrollments,
+  enroll,
+  cancelEnrollment,
+  discontinue,
+}
+
+export default enrollmentService
+

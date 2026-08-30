@@ -10,3 +10,14 @@ export const update = (id, data) => api.put(`/sessions/${id}`, data)
 export const updateStatus = (id, status) =>
   api.put(`/sessions/${id}/status`, null, { params: { status } })
 export const cancel = (id) => api.delete(`/sessions/${id}`)
+
+const sessionService = {
+  getAll,
+  create,
+  update,
+  updateStatus,
+  cancel,
+}
+
+export default sessionService
+

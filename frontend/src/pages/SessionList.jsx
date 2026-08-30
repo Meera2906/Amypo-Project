@@ -34,7 +34,8 @@ function SessionList() {
       setLoading(true)
       setError('')
       const response = await sessionService.getAll(0, 20)
-      setSessions(response.data.content || [])
+      const data = response.data
+      setSessions(Array.isArray(data) ? data : (data?.content || []))
     } catch (err) {
       setError('Unable to load sessions')
     } finally {
@@ -121,11 +122,9 @@ function SessionList() {
     <div className="page container">
       <div className="page-header">
         <h2>Tutoring Sessions</h2>
-        {isAdminOrMentor && (
-          <button type="button" className="primary-btn" onClick={() => setShowModal(true)}>
-            + Add Session
-          </button>
-        )}
+        <button type="button" className="primary-btn btn-primary" onClick={() => setShowModal(true)}>
+          + Add Session
+        </button>
       </div>
 
       {loading ? <div className="loader" data-testid="loader">Loading...</div> : null}

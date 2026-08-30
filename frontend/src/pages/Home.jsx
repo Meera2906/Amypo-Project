@@ -47,7 +47,7 @@ function Home() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>Welcome back {user?.fullName}</h1>
+        <h1>{`Welcome back ${user?.fullName || ''}`}</h1>
       </header>
 
       {loading ? (
