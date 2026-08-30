@@ -1,8 +1,19 @@
 import api from './api'
 
-export const getMentors = () => api.get('/users/mentors')
-export const getStats = () => api.get('/analytics/stats')
-export const getMentorStats = (id) => api.get(`/analytics/mentor/${id}`)
+export const getMentors = async () => {
+  const res = await api.get('/users/mentors')
+  return res?.data !== undefined ? res.data : res
+}
+
+export const getStats = async () => {
+  const res = await api.get('/analytics/stats')
+  return res?.data !== undefined ? res.data : res
+}
+
+export const getMentorStats = async (id) => {
+  const res = await api.get(`/analytics/mentor/${id}`)
+  return res?.data !== undefined ? res.data : res
+}
 
 const userService = {
   getMentors,
@@ -11,4 +22,5 @@ const userService = {
 }
 
 export default userService
+
 

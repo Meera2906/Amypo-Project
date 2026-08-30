@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import Modal from '../components/layout/Modal'
 import CapacityBar from '../components/layout/CapacityBar'
 import * as sessionService from '../services/sessionService'
+import * as subjectService from '../services/subjectService'
 
 const statusColors = {
   SCHEDULED: 'badge-scheduled',
@@ -14,6 +15,7 @@ const statusColors = {
 function SessionList() {
   const user = useSelector((state) => state.auth.user)
   const [sessions, setSessions] = useState([])
+  const [fetchedSubjects, setFetchedSubjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -27,15 +29,13 @@ function SessionList() {
     mentor: { id: user?.id || 1 },
   })
 
-  const isAdminOrMentor = user?.role === 'MENTOR' || user?.role === 'ACADEMIC_ADMIN'
-
   const fetchSessions = async () => {
     try {
       setLoading(true)
       setError('')
       const response = await sessionService.getAll(0, 20)
-      const data = response.data
-      setSessions(Array.isArray(data) ? data : (data?.content || []))
+      const data = response?.content !== undefined ? response.content : (response?.data?.content !== undefined ? response.data.content : (response?.data !== undefined ? response.data : response))
+      setSessions(Array.isArray(data) ? data : [])
     } catch (err) {
       setError('Unable to load sessions')
     } finally {
@@ -43,8 +43,21 @@ function SessionList() {
     }
   }
 
+  const fetchSubjects = async () => {
+    try {
+      const response = await subjectService.getAll()
+      const data = response?.content !== undefined ? response.content : (response?.data !== undefined ? response.data : response)
+      if (Array.isArray(data) && data.length > 0) {
+        setFetchedSubjects(data)
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   useEffect(() => {
     fetchSessions()
+    fetchSubjects()
   }, [])
 
   const handleChange = (event) => {
@@ -64,14 +77,15 @@ function SessionList() {
     }
 
     try {
+      const mentorId = user?.id || 1
       await sessionService.create({
         title,
         description: form.description,
         startTime: form.startTime,
         endTime: form.endTime,
         maxCapacity: Number(form.maxCapacity),
-        mentor: { id: user.id },
-        subject: { id: Number(form.subject.id) },
+        mentor: { id: mentorId },
+        subject: { id: Number(form.subject?.id || 1) },
       })
       setShowModal(false)
       setForm({
@@ -111,12 +125,14 @@ function SessionList() {
     return null
   }
 
-  const subjectOptions = useMemo(() => [
+  const defaultSubjects = useMemo(() => [
     { id: 1, name: 'Mathematics' },
     { id: 2, name: 'Physics' },
     { id: 3, name: 'Computer Science' },
     { id: 4, name: 'Chemistry' },
   ], [])
+
+  const subjectOptions = fetchedSubjects.length > 0 ? fetchedSubjects : defaultSubjects
 
   return (
     <div className="page container">
@@ -174,7 +190,7 @@ function SessionList() {
 
           <div className="field">
             <label htmlFor="subjectId">Subject</label>
-            <select id="subjectId" name="subject" onChange={(event) => setForm({ ...form, subject: { id: Number(event.target.value) } })} value={form.subject.id}>
+            <select id="subjectId" name="subject" onChange={(event) => setForm({ ...form, subject: { id: Number(event.target.value) } })} value={form.subject?.id || 1}>
               {subjectOptions.map((subject) => (
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}

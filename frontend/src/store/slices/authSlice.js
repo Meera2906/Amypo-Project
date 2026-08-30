@@ -14,13 +14,13 @@ const initialState = {
 export const login = createAsyncThunk('auth/login', async (credentials, { rejectWithValue }) => {
   try {
     const response = await loginApi(credentials)
-    const payload = response.data
+    const payload = response?.data !== undefined ? response.data : response
     localStorage.setItem('loom_token', payload.token)
     localStorage.setItem('loom_user', JSON.stringify({
-      id: payload.id,
-      fullName: payload.fullName,
-      email: payload.email,
-      role: payload.role,
+      id: payload.id || payload.user?.id,
+      fullName: payload.fullName || payload.user?.fullName,
+      email: payload.email || payload.user?.email,
+      role: payload.role || payload.user?.role,
     }))
     return payload
   } catch (error) {
@@ -31,13 +31,13 @@ export const login = createAsyncThunk('auth/login', async (credentials, { reject
 export const register = createAsyncThunk('auth/register', async (userData, { rejectWithValue }) => {
   try {
     const response = await registerApi(userData)
-    const payload = response.data
+    const payload = response?.data !== undefined ? response.data : response
     localStorage.setItem('loom_token', payload.token)
     localStorage.setItem('loom_user', JSON.stringify({
-      id: payload.id,
-      fullName: payload.fullName,
-      email: payload.email,
-      role: payload.role,
+      id: payload.id || payload.user?.id,
+      fullName: payload.fullName || payload.user?.fullName,
+      email: payload.email || payload.user?.email,
+      role: payload.role || payload.user?.role,
     }))
     return payload
   } catch (error) {

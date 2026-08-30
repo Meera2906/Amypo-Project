@@ -12,7 +12,8 @@ function SubjectList() {
   const loadSubjects = async () => {
     try {
       const response = await getAll()
-      setSubjects(response.data || [])
+      const data = response?.content !== undefined ? response.content : (response?.data !== undefined ? response.data : response)
+      setSubjects(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error(error)
     } finally {

@@ -10,11 +10,22 @@ function Home() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const storedUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('loom_user'))
+    } catch (e) {
+      return null
+    }
+  }, [])
+
+  const displayName = user?.fullName || user?.name || storedUser?.fullName || storedUser?.name || 'John Doe'
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const response = await getStats()
-        setStats(response.data)
+        const data = response?.data !== undefined ? response.data : response
+        setStats(data)
       } catch (error) {
         console.error(error)
       } finally {
@@ -47,7 +58,7 @@ function Home() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>{`Welcome back ${user?.fullName || ''}`}</h1>
+        <h1>{`Welcome back ${displayName}`}</h1>
       </header>
 
       {loading ? (

@@ -16,8 +16,6 @@ function Register() {
     bio: '',
   })
 
-  if (token) return <Navigate to="/" replace />
-
   const handleChange = (event) => {
     setForm({ ...form, [event.target.name]: event.target.value })
   }

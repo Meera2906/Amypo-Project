@@ -12,7 +12,8 @@ function MyEnrollments() {
 
     try {
       const response = await getMyEnrollments(user.id)
-      setEnrollments(response.data || [])
+      const data = response?.content !== undefined ? response.content : (response?.data !== undefined ? response.data : response)
+      setEnrollments(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error(error)
     } finally {

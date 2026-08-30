@@ -1,9 +1,26 @@
 import api from './api'
 
-export const getAll = () => api.get('/subjects')
-export const create = (data) => api.post('/subjects', data)
-export const update = (id, data) => api.put(`/subjects/${id}`, data)
-export const deleteSubject = (id) => api.delete(`/subjects/${id}`)
+export const getAll = async () => {
+  const res = await api.get('/subjects')
+  return res?.data !== undefined ? res.data : res
+}
+
+export const create = async (data) => {
+  const res = await api.post('/subjects', data)
+  return res?.data !== undefined ? res.data : res
+}
+
+export const update = async (id, data) => {
+  const res = await api.put(`/subjects/${id}`, data)
+  return res?.data !== undefined ? res.data : res
+}
+
+export const deleteSubject = async (id) => {
+  const res = await api.delete(`/subjects/${id}`)
+  return res?.data !== undefined ? res.data : res
+}
+
+export { deleteSubject as delete }
 
 const subjectService = {
   getAll,
@@ -14,6 +31,6 @@ const subjectService = {
   delete: deleteSubject,
 }
 
-
 export default subjectService
+
 

@@ -1,2 +1,3 @@
-import Navbar from './components/layout/Navbar'
+import Navbar from './layout/Navbar'
 export default Navbar
+

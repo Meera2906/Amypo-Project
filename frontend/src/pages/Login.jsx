@@ -9,8 +9,6 @@ function Login() {
   const { token, loading, error } = useSelector((state) => state.auth)
   const [form, setForm] = useState({ email: '', password: '' })
 
-  if (token) return <Navigate to="/" replace />
-
   const handleChange = (event) => {
     setForm({ ...form, [event.target.name]: event.target.value })
   }
