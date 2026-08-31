@@ -1,9 +1,43 @@
 :root {
-  font-family: Inter, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #e2e8f0;
-  background: linear-gradient(135deg, #0f172a, #111827 45%, #1e293b);
+
+  /* New Palette strictly from user specification:
+     --#0e0f14: #0e0f14 (Dark base)
+     --#17205a: #17205a (Deep blue)
+     --#1c21ab: #1c21ab (Royal blue)
+     --#3d4aa0: #3d4aa0 (Medium blue)
+     --#4260e5: #4260e5 (Bright vivid blue accent)
+     --#7884d7: #7884d7 (Soft periwinkle)
+     --#b5bcef: #b5bcef (Light lilac blue text/highlight)
+     --#f8f9fa: #f8f9fa (Soft white contrast)
+  */
+  --color-dark-base: #0e0f14;
+  --color-deep-blue: #17205a;
+  --color-royal-blue: #1c21ab;
+  --color-medium-blue: #3d4aa0;
+  --color-vivid-blue: #4260e5;
+  --color-periwinkle: #7884d7;
+  --color-lilac: #b5bcef;
+  --color-soft-white: #f8f9fa;
+
+  /* Subtle Glassmorphism Design Tokens */
+  --bg-dark: #0e0f14;
+  --text-primary: #f8f9fa;
+  --text-secondary: #b5bcef;
+  --text-muted: rgba(181, 188, 239, 0.6);
+
+  --glass-bg: rgba(23, 32, 90, 0.28);
+  --glass-bg-hover: rgba(30, 42, 110, 0.42);
+  --glass-border: rgba(120, 132, 215, 0.2);
+  --glass-border-hover: rgba(181, 188, 239, 0.45);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0.5px rgba(248, 249, 250, 0.15);
+  --glass-glow: 0 0 20px rgba(66, 96, 229, 0.2);
+  --glass-blur: blur(12px);
+
+  color: var(--text-primary);
+  background-color: var(--color-dark-base);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -16,15 +50,23 @@
 
 html {
   scroll-behavior: smooth;
+  background-color: var(--color-dark-base);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(59, 130, 246, 0.25), transparent 35%),
-    linear-gradient(135deg, #020817, #0f172a 35%, #111827);
+  background-color: var(--color-dark-base);
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(28, 33, 171, 0.45) 0%, transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(66, 96, 229, 0.35) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(23, 32, 90, 0.5) 0%, transparent 55%),
+    linear-gradient(180deg, #0e0f14 0%, #17205a 50%, #0e0f14 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  overflow-x: hidden;
+  position: relative;
 }
 
 button,
@@ -32,20 +74,45 @@ input,
 select,
 textarea {
   font: inherit;
+  color: inherit;
 }
 
 #root {
   min-height: 100vh;
+  position: relative;
 }
 
 a {
   text-decoration: none;
+  color: var(--color-vivid-blue);
+  transition: all 0.2s ease;
 }
 
-h1,
-h2,
-h3,
-h4,
-p {
+a:hover {
+  color: var(--color-lilac);
+  text-shadow: 0 0 10px rgba(66, 96, 229, 0.6);
+}
+
+h1, h2, h3, h4, h5, h6, p {
   margin-top: 0;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(14, 15, 20, 0.9);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(61, 74, 160, 0.7);
+  border-radius: 4px;
+  border: 1px solid rgba(120, 132, 215, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-vivid-blue);
 }

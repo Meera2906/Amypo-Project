@@ -8,19 +8,25 @@ function Navbar() {
 
   const links = {
     LEARNER: [
+      { to: '/', label: 'Dashboard' },
       { to: '/sessions', label: 'Sessions' },
       { to: '/subjects', label: 'Subjects' },
       { to: '/enrollments', label: 'Enrollments' },
     ],
     MENTOR: [
+      { to: '/', label: 'Dashboard' },
       { to: '/sessions', label: 'Sessions' },
       { to: '/subjects', label: 'Subjects' },
     ],
     ACADEMIC_ADMIN: [
+      { to: '/', label: 'Dashboard' },
       { to: '/subjects', label: 'Subjects' },
       { to: '/mentors', label: 'Mentors' },
     ],
-    SUPPORT_AGENT: [{ to: '/support', label: 'Support' }],
+    SUPPORT_AGENT: [
+      { to: '/', label: 'Dashboard' },
+      { to: '/support', label: 'Support' },
+    ],
   }
 
   const customerLinks = links[user?.role] || []
