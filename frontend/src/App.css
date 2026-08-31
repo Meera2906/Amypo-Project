@@ -20,14 +20,13 @@
 .app-shell {
   position: relative;
   z-index: 1;
-  width: min(1280px, calc(100vw - 32px));
+  width: min(1320px, calc(100vw - 32px));
   margin: 24px auto;
   padding: 0 0 32px;
   border-radius: 24px;
-  background: var(--glass-bg);
-  box-shadow: var(--glass-shadow);
-  border: 1px solid var(--glass-border);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  background: rgba(14, 15, 20, 0.78);
+  border: 1px solid rgba(120, 132, 215, 0.25);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(30, 42, 110, 0.3);
   overflow: hidden;
 }
 
