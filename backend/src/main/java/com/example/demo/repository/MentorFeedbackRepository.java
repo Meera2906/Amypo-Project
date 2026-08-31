@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MentorFeedbackRepository extends JpaRepository<MentorFeedback, Long> {
+    void deleteBySessionId(Long sessionId);
     @Query("SELECT AVG(f.rating) FROM MentorFeedback f WHERE f.mentor.id = :mentorId")
     Double getAverageRatingByMentorId(@Param("mentorId") Long mentorId);
     

@@ -15,6 +15,11 @@ const DotField = memo(({
   baseColor = 'rgba(255, 255, 255, 0.15)',
   activeGradientFrom = 'rgba(168, 85, 247, 0.95)',
   activeGradientTo = 'rgba(180, 151, 207, 0.85)',
+  glowRadius,
+  sparkle,
+  gradientFrom,
+  gradientTo,
+  glowColor,
   ...rest
 }) => {
   const canvasRef = useRef(null);
@@ -33,8 +38,8 @@ const DotField = memo(({
     bulgeStrength,
     waveAmplitude,
     baseColor,
-    activeGradientFrom,
-    activeGradientTo,
+    activeGradientFrom: gradientFrom || activeGradientFrom,
+    activeGradientTo: gradientTo || activeGradientTo,
   };
   const rebuildRef = useRef(null);
 

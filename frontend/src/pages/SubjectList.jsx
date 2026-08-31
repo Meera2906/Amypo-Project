@@ -38,11 +38,15 @@ function SubjectList() {
   }
 
   const handleDelete = async (id) => {
+    if (!id) return
     try {
+      setMessage('')
       await deleteSubject(id)
+      setMessage('Subject removed successfully.')
       await loadSubjects()
     } catch (error) {
       console.error(error)
+      setMessage(error.response?.data?.message || 'Unable to remove subject.')
     }
   }
 
