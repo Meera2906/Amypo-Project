@@ -58,12 +58,12 @@ function App() {
           <div className="background-dotfield-wrapper">
             <DotField
               dotRadius={2.8}
-              dotSpacing={28}
+              dotSpacing={40}
               bulgeStrength={120}
               glowRadius={550}
               sparkle={true}
               waveAmplitude={6}
-              cursorRadius={750}
+              cursorRadius={180}
               gradientFrom="#7884d7"
               gradientTo="#4260e5"
               glowColor="#4260e5"
