@@ -52,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Optional<AcademicUser> userOpt = academicUserRepository.findByEmail(email);
             if (userOpt.isPresent()) {
                 AcademicUser user = userOpt.get();
-                if ("APPROVED".equals(user.getStatus().name())) {
+                if (!"BLOCKED".equals(user.getStatus().name()) && !"REJECTED".equals(user.getStatus().name())) {
                     List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                     authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
 

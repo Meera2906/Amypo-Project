@@ -63,8 +63,11 @@ public class AcademicAuthService {
             throw new BusinessValidationException("Invalid Credentials.");
         }
         
-        if (user.getStatus() == UserStatus.PENDING || user.getStatus() == UserStatus.BLOCKED) {
-            throw new BusinessValidationException("Account is pending or blocked");
+        if (user.getStatus() == UserStatus.BLOCKED) {
+            throw new BusinessValidationException("Account is blocked. Please contact support.");
+        }
+        if (user.getStatus() == UserStatus.REJECTED) {
+            throw new BusinessValidationException("Account registration was rejected.");
         }
         
         String token = jwtUtil.generateToken(user.getEmail());

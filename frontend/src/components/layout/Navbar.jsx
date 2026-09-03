@@ -25,6 +25,8 @@ function Navbar() {
     ],
     SUPPORT_AGENT: [
       { to: '/', label: 'Dashboard' },
+      { to: '/sessions', label: 'Sessions' },
+      { to: '/subjects', label: 'Subjects' },
       { to: '/support', label: 'Support' },
     ],
   }

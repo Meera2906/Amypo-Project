@@ -15,12 +15,16 @@ export const getMentorStats = async (id) => {
   return res?.data !== undefined ? res.data : res
 }
 
+export const updateMentorStatus = async (id, status) => {
+  const res = await api.put(`/users/${id}/status`, null, { params: { status } })
+  return res?.data !== undefined ? res.data : res
+}
+
 const userService = {
   getMentors,
   getStats,
   getMentorStats,
+  updateMentorStatus,
 }
 
 export default userService
-
-

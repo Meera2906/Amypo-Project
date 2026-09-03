@@ -252,7 +252,7 @@ function Login() {
 
               {error && (
                 <p data-testid="error-message" className="error-box">
-                  {error === 'Invalid Credentials.' ? 'Invalid Credentials.' : 'Invalid Credentials.'}
+                  {error}
                 </p>
               )}
 
