@@ -330,7 +330,9 @@ function SubjectList() {
                       overflow: 'hidden',
                     }}
                   >
-                    {subject.description || 'Guided academic study subject designed for collaborative peer mentoring.'}
+                    {subject.description && subject.description.trim() !== (subject.name || '').trim()
+                      ? subject.description
+                      : (subject.description ? `Curriculum overview: ${subject.description}.` : 'Guided academic study subject designed for collaborative peer mentoring.')}
                   </p>
 
                   {/* Actions Row */}
@@ -445,7 +447,9 @@ function SubjectList() {
                         </span>
                       </td>
                       <td style={{ color: 'var(--text-secondary)', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {subject.description || 'Academic course syllabus.'}
+                        {subject.description && subject.description.trim() !== (subject.name || '').trim()
+                          ? subject.description
+                          : (subject.description ? `Curriculum overview: ${subject.description}.` : 'Academic course syllabus.')}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>

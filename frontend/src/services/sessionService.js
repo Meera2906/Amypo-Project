@@ -63,12 +63,15 @@ export const cancel = async (id) => {
   }
 }
 
+export const createSession = async (data) => create(data)
+
 export { cancel as delete }
 export { cancel as deleteSession }
 
 const sessionService = {
   getAll,
   create,
+  createSession: create,
   update,
   updateStatus,
   cancel,

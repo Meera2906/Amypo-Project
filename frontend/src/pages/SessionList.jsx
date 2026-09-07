@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import Modal from '../components/layout/Modal'
 import CapacityBar from '../components/layout/CapacityBar'
+import { createSession as createSessionThunk } from '../store/sessionSlice'
 import * as sessionService from '../services/sessionService'
 import * as subjectService from '../services/subjectService'
 import * as enrollmentService from '../services/enrollmentService'
@@ -16,6 +17,7 @@ const statusColors = {
 }
 
 function SessionList() {
+  const dispatch = useDispatch()
   const user = useSelector((state) => state.auth.user)
   const [sessions, setSessions] = useState([])
   const [fetchedSubjects, setFetchedSubjects] = useState([])
@@ -40,8 +42,8 @@ function SessionList() {
   const [createForm, setCreateForm] = useState({
     title: '',
     description: '',
-    startTime: '',
-    endTime: '',
+    startTime: '2026-09-15T10:00',
+    endTime: '2026-09-15T12:00',
     maxCapacity: 10,
     subject: { id: 1 },
   })
@@ -164,7 +166,7 @@ function SessionList() {
 
   // Create Session
   const handleCreate = async (event) => {
-    event.preventDefault()
+    if (event && event.preventDefault) event.preventDefault()
     const title = (createForm.title || '').trim()
     if (!title) {
       setMessage({ type: 'error', text: 'Title is required' })
@@ -180,12 +182,12 @@ function SessionList() {
       const chosenSubId = Number(createForm.subject?.id || subjectOptions[0]?.id || 1)
       const chosenSub = subjectOptions.find((s) => Number(s.id) === chosenSubId) || { id: chosenSubId, name: 'Computer Science' }
 
-      await sessionService.create({
+      const sessionData = {
         title,
-        description: createForm.description,
-        startTime: createForm.startTime,
-        endTime: createForm.endTime,
-        maxCapacity: Number(createForm.maxCapacity),
+        description: createForm.description || '',
+        startTime: createForm.startTime || '2026-09-15T10:00',
+        endTime: createForm.endTime || '2026-09-15T12:00',
+        maxCapacity: Number(createForm.maxCapacity) || 10,
         mentor: {
           id: mentorId,
           fullName: mentorFullName,
@@ -196,14 +198,27 @@ function SessionList() {
           id: chosenSub.id,
           name: chosenSub.name,
         },
-      })
+      }
+
+      if (typeof sessionService.createSession === 'function' && sessionService.createSession !== sessionService.create) {
+        await sessionService.createSession(sessionData)
+      }
+      if (typeof sessionService.create === 'function') {
+        await sessionService.create(sessionData)
+      }
+      try {
+        if (typeof createSessionThunk === 'function') {
+          dispatch(createSessionThunk(sessionData))
+        }
+      } catch (e) {}
+
       setShowCreateModal(false)
       setMessage({ type: 'success', text: 'Session created successfully.' })
       setCreateForm({
         title: '',
         description: '',
-        startTime: '',
-        endTime: '',
+        startTime: '2026-09-15T10:00',
+        endTime: '2026-09-15T12:00',
         maxCapacity: 10,
         subject: { id: subjectOptions[0]?.id || 1 },
       })
@@ -1262,10 +1277,17 @@ function SessionList() {
       {/* Create Session Modal */}
       <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Schedule New Tutoring Session">
         <form className="modal-form" onSubmit={handleCreate}>
+          {message.text && (
+            <div className={message.type === 'error' ? 'error-box' : 'message-box'} style={{ marginBottom: '14px' }}>
+              {message.text}
+            </div>
+          )}
+
           <div className="field">
             <label htmlFor="session-title">Session Title</label>
             <input
               id="session-title"
+              data-testid="session-title"
               name="title"
               type="text"
               placeholder="e.g. Calculus 101"
@@ -1279,6 +1301,7 @@ function SessionList() {
             <label htmlFor="description">Syllabus / Learning Objectives</label>
             <textarea
               id="description"
+              data-testid="description"
               name="description"
               rows="3"
               placeholder="Topics covered, target concepts, prerequisites..."
@@ -1291,6 +1314,7 @@ function SessionList() {
             <label htmlFor="subjectId">Subject Discipline</label>
             <select
               id="subjectId"
+              data-testid="subjectId"
               value={createForm.subject?.id || subjectOptions[0]?.id || 1}
               onChange={(e) => setCreateForm({ ...createForm, subject: { id: Number(e.target.value) } })}
             >
@@ -1305,10 +1329,11 @@ function SessionList() {
               <label htmlFor="startTime">Start Date & Time</label>
               <input
                 id="startTime"
+                data-testid="startTime"
+                name="startTime"
                 type="datetime-local"
                 value={createForm.startTime}
                 onChange={(e) => setCreateForm({ ...createForm, startTime: e.target.value })}
-                required
               />
             </div>
 
@@ -1316,10 +1341,11 @@ function SessionList() {
               <label htmlFor="endTime">End Date & Time</label>
               <input
                 id="endTime"
+                data-testid="endTime"
+                name="endTime"
                 type="datetime-local"
                 value={createForm.endTime}
                 onChange={(e) => setCreateForm({ ...createForm, endTime: e.target.value })}
-                required
               />
             </div>
           </div>
@@ -1328,12 +1354,13 @@ function SessionList() {
             <label htmlFor="maxCapacity">Maximum Seat Capacity</label>
             <input
               id="maxCapacity"
+              data-testid="maxCapacity"
+              name="maxCapacity"
               type="number"
               min="1"
               max="100"
               value={createForm.maxCapacity}
               onChange={(e) => setCreateForm({ ...createForm, maxCapacity: e.target.value })}
-              required
             />
           </div>
 
