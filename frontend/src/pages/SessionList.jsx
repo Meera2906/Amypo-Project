@@ -622,7 +622,7 @@ function SessionList() {
               <option value="ALL">All Subjects</option>
               {subjectOptions.map((sub) => (
                 <option key={sub.id} value={sub.id}>
-                  {sub.name}
+                  Subject: {sub.name}
                 </option>
               ))}
             </select>
@@ -1334,6 +1334,7 @@ function SessionList() {
                 type="datetime-local"
                 value={createForm.startTime}
                 onChange={(e) => setCreateForm({ ...createForm, startTime: e.target.value })}
+                required
               />
             </div>
 
@@ -1346,6 +1347,7 @@ function SessionList() {
                 type="datetime-local"
                 value={createForm.endTime}
                 onChange={(e) => setCreateForm({ ...createForm, endTime: e.target.value })}
+                required
               />
             </div>
           </div>
