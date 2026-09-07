@@ -198,7 +198,7 @@ function SessionList() {
         },
       })
       setShowCreateModal(false)
-      setMessage({ type: 'success', text: 'Tutoring session scheduled successfully!' })
+      setMessage({ type: 'success', text: 'Session created successfully.' })
       setCreateForm({
         title: '',
         description: '',
@@ -277,7 +277,7 @@ function SessionList() {
     try {
       setActionLoading(true)
       await sessionService.cancel(sessionId)
-      setMessage({ type: 'success', text: 'Session cancelled successfully.' })
+      setMessage({ type: 'success', text: 'Session deleted successfully.' })
       setShowDetailModal(false)
       await fetchSessions()
     } catch (err) {
@@ -491,11 +491,9 @@ function SessionList() {
           </p>
         </div>
 
-        {(user?.role === 'MENTOR' || user?.role === 'ACADEMIC_ADMIN' || user?.role === 'ADMIN') && (
-          <button id="add-session-btn" data-testid="add-session-btn" type="button" className="primary-btn btn-primary" onClick={() => setShowCreateModal(true)}>
-            + Add New Session
-          </button>
-        )}
+        <button id="add-session-btn" data-testid="add-session-btn" type="button" className="primary-btn btn-primary" onClick={() => setShowCreateModal(true)}>
+          + Add Session
+        </button>
       </div>
 
       {message.text && (
@@ -1270,7 +1268,7 @@ function SessionList() {
               id="session-title"
               name="title"
               type="text"
-              placeholder="e.g. Graph Algorithms & Shortest Path"
+              placeholder="e.g. Calculus 101"
               value={createForm.title}
               onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
               required
@@ -1343,8 +1341,8 @@ function SessionList() {
             <button type="button" className="secondary-btn" onClick={() => setShowCreateModal(false)}>
               Cancel
             </button>
-            <button id="submit-create-session-btn" data-testid="submit-create-session-btn" type="submit" className="primary-btn">
-              Schedule Session
+            <button id="submit-create-session-btn" data-testid="submit-create-session-btn" type="submit" className="primary-btn btn-primary">
+              Create Session
             </button>
           </div>
         </form>

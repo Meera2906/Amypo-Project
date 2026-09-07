@@ -23,14 +23,16 @@ public class SessionController {
 
     @GetMapping
     public ResponseEntity<Page<TutoringSession>> getAll(
-            @RequestParam(required = false) Long mentorId,
             @PageableDefault(size = 200, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<TutoringSession> sessions;
-        if (mentorId != null) {
-            sessions = sessionManagementService.getSessionsByMentor(mentorId, pageable);
-        } else {
-            sessions = sessionManagementService.getAvailableSessions(pageable);
-        }
+        Page<TutoringSession> sessions = sessionManagementService.getAvailableSessions(pageable);
+        return ResponseEntity.ok(sessions);
+    }
+
+    @GetMapping(params = "mentorId")
+    public ResponseEntity<Page<TutoringSession>> getAll(
+            @RequestParam Long mentorId,
+            @PageableDefault(size = 200, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<TutoringSession> sessions = sessionManagementService.getSessionsByMentor(mentorId, pageable);
         return ResponseEntity.ok(sessions);
     }
 

@@ -24,7 +24,7 @@ function Home() {
   }, [])
 
   const currentUser = user || storedUser
-  const displayName = currentUser?.fullName || currentUser?.name || 'User'
+  const displayName = currentUser?.fullName || currentUser?.name || 'John Doe'
   const role = currentUser?.role || 'LEARNER'
   const isMentorPending = currentUser?.status === 'PENDING'
 
