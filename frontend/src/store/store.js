@@ -1,8 +1,8 @@
 import { configureStore } from '@reduxjs/toolkit'
-import authReducer from './slices/authSlice'
-import sessionReducer from './slices/sessionSlice'
-import subjectReducer from './slices/subjectSlice'
-import enrollmentReducer from './slices/enrollmentSlice'
+import authReducer from './authSlice'
+import sessionReducer from './sessionSlice'
+import subjectReducer from './subjectSlice'
+import enrollmentReducer from './enrollmentSlice'
 
 export const store = configureStore({
   reducer: {

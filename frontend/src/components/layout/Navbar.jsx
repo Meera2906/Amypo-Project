@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { logout } from '../../store/slices/authSlice'
+import { logout } from '../../store/authSlice'
 import UserProfileModal, { getDefaultAvatar } from './UserProfileModal'
 
 function Navbar() {

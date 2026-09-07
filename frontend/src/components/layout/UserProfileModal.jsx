@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { updateProfile, logout } from '../../store/slices/authSlice'
+import { updateProfile, logout } from '../../store/authSlice'
 
 const PRESET_AVATARS = [
   { label: 'Avatar 1', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80' },

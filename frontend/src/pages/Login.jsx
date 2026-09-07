@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../store/slices/authSlice';
+import { login } from '../store/authSlice';
 import DotField from '../components/DotField';
 import './Login.css';
 
