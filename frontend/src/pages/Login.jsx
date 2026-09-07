@@ -258,7 +258,7 @@ function Login() {
               )}
 
               <button type="submit" className="continue-btn" disabled={loading}>
-                {loading ? 'Loading...' : 'Continue'}
+                {loading ? 'Loading...' : 'Login'}
               </button>
 
               <div className="divider">
