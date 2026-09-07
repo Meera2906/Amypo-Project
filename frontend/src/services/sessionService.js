@@ -1,9 +1,13 @@
 import api from './api'
 import mockStore from './mockDataStore'
 
-export const getAll = async (page = 0, size = 50) => {
+export const getAll = async (page = 0, size = 200, mentorId = null) => {
   try {
-    const res = await api.get('/sessions', { params: { page, size } })
+    const params = { page, size }
+    if (mentorId != null && mentorId !== '' && mentorId !== 'ALL') {
+      params.mentorId = mentorId
+    }
+    const res = await api.get('/sessions', { params })
     const data = res?.content !== undefined
       ? res.content
       : (res?.data?.content !== undefined
@@ -12,17 +16,18 @@ export const getAll = async (page = 0, size = 50) => {
     if (Array.isArray(data) && data.length > 0) {
       return data
     }
-    return mockStore.getSessions()
+    return mockStore.getSessions(mentorId)
   } catch (err) {
-    return mockStore.getSessions()
+    return mockStore.getSessions(mentorId)
   }
 }
 
 export const create = async (data) => {
   try {
     const res = await api.post('/sessions', data)
-    mockStore.createSession(data)
-    return res?.data !== undefined ? res.data : res
+    const saved = res?.data !== undefined ? res.data : res
+    mockStore.createSession(saved || data)
+    return saved
   } catch (err) {
     return mockStore.createSession(data)
   }

@@ -410,6 +410,28 @@ class MockDataStore {
     }
   }
 
+  syncFromStorage() {
+    try {
+      if (typeof localStorage === 'undefined') return
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object') {
+          this.state = {
+            users: Array.isArray(parsed.users) ? parsed.users : this.state.users,
+            subjects: Array.isArray(parsed.subjects) ? parsed.subjects : this.state.subjects,
+            sessions: Array.isArray(parsed.sessions) ? parsed.sessions : this.state.sessions,
+            enrollments: Array.isArray(parsed.enrollments) ? parsed.enrollments : this.state.enrollments,
+            feedbacks: Array.isArray(parsed.feedbacks) ? parsed.feedbacks : this.state.feedbacks,
+            activities: Array.isArray(parsed.activities) ? parsed.activities : this.state.activities,
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Unable to sync mock state from storage', e)
+    }
+  }
+
   // USERS / AUTH
   findUserByEmail(email) {
     if (!email) return null
@@ -432,21 +454,24 @@ class MockDataStore {
     return this.state.users.filter((u) => u.role === 'MENTOR')
   }
 
-  updateMentorStatus(id, status) {
-    this.state.users = this.state.users.map((u) =>
-      String(u.id) === String(id) ? { ...u, status } : u
-    )
+  updateMentorStatus(id, status, email) {
+    this.syncFromStorage()
+    this.state.users = this.state.users.map((u) => {
+      const matchId = id && String(u.id) === String(id)
+      const matchEmail = email && u.email && u.email.toLowerCase() === String(email).toLowerCase()
+      return (matchId || matchEmail) ? { ...u, status } : u
+    })
     this.state.activities.unshift({
       id: Date.now(),
       type: 'MENTOR',
       title: `Mentor Status Updated to ${status}`,
-      detail: `Mentor #${id} status changed to ${status} by Academic Admin`,
+      detail: `Mentor #${id || email} status changed to ${status} by Academic Admin`,
       time: 'Just now',
       badge: status,
       badgeClass: status === 'APPROVED' ? 'badge-approved' : status === 'PENDING' ? 'badge-pending' : 'badge-cancelled',
     })
     this.saveState()
-    return this.getUser(id)
+    return this.getUser(id) || (email ? this.findUserByEmail(email) : null)
   }
 
   // ANALYTICS / STATS
@@ -535,30 +560,43 @@ class MockDataStore {
   }
 
   // SESSIONS
-  getSessions() {
+  getSessions(mentorId = null) {
+    this.syncFromStorage()
+    if (mentorId != null && mentorId !== '' && mentorId !== 'ALL') {
+      const targetUser = this.getUser(mentorId)
+      return this.state.sessions.filter((s) => {
+        const matchId = String(s.mentor?.id) === String(mentorId)
+        const matchEmail = targetUser?.email && s.mentor?.email && s.mentor.email.toLowerCase() === targetUser.email.toLowerCase()
+        return matchId || matchEmail
+      })
+    }
     return this.state.sessions
   }
 
   createSession(data) {
-    const subject = this.state.subjects.find((s) => String(s.id) === String(data.subject?.id)) || {
-      id: data.subject?.id || 1,
-      name: 'Computer Science',
+    this.syncFromStorage()
+    const subject = this.state.subjects.find((s) => String(s.id) === String(data.subject?.id || data.subjectId)) || {
+      id: data.subject?.id || data.subjectId || 1,
+      name: data.subject?.name || 'Computer Science',
     }
-    const mentor = this.getUser(data.mentor?.id) || {
-      id: data.mentor?.id || 2,
-      fullName: 'Bob Mentor',
-      department: 'Computer Science',
+    const foundMentor = data.mentor?.id ? this.getUser(data.mentor.id) : null
+    const mentor = {
+      id: data.mentor?.id || foundMentor?.id || 2,
+      fullName: data.mentor?.fullName || foundMentor?.fullName || 'Bob Mentor',
+      department: data.mentor?.department || foundMentor?.department || 'Computer Science',
+      email: data.mentor?.email || foundMentor?.email || 'mentor@loomlearn.com',
     }
 
+    const maxId = this.state.sessions.reduce((max, s) => Math.max(max, Number(s.id) || 0), 0)
     const newSession = {
-      id: Date.now(),
+      id: data.id || Math.max(Date.now(), maxId + 1),
       title: data.title,
       description: data.description || '',
       startTime: data.startTime,
       endTime: data.endTime,
       maxCapacity: Number(data.maxCapacity) || 10,
-      currentEnrollment: 0,
-      status: 'SCHEDULED',
+      currentEnrollment: data.currentEnrollment || 0,
+      status: data.status || 'SCHEDULED',
       mentor: {
         id: mentor.id,
         fullName: mentor.fullName,
@@ -571,7 +609,13 @@ class MockDataStore {
       },
     }
 
-    this.state.sessions.unshift(newSession)
+    const existingIdx = this.state.sessions.findIndex((s) => String(s.id) === String(newSession.id))
+    if (existingIdx >= 0) {
+      this.state.sessions[existingIdx] = { ...this.state.sessions[existingIdx], ...newSession }
+    } else {
+      this.state.sessions.unshift(newSession)
+    }
+
     this.state.activities.unshift({
       id: Date.now(),
       type: 'SESSION',
@@ -642,6 +686,7 @@ class MockDataStore {
 
   // ENROLLMENTS
   getEnrollmentsForLearner(learnerId) {
+    this.syncFromStorage()
     return this.state.enrollments.filter((e) => String(e.learnerId) === String(learnerId))
   }
 
@@ -655,7 +700,7 @@ class MockDataStore {
     const existing = this.state.enrollments.find(
       (e) => String(e.learnerId) === String(learnerId) && String(e.sessionId) === String(sessionId)
     )
-    if (existing) {
+    if (existing && (existing.status === 'ENROLLED' || existing.status === 'ATTENDED')) {
       throw new Error('Already enrolled in this session')
     }
 
@@ -669,6 +714,13 @@ class MockDataStore {
     // CONSISTENCY REQUIREMENT:
     // Decrement available seats (increment current enrollment count)
     session.currentEnrollment = current + 1
+
+    if (existing) {
+      existing.status = session.status === 'COMPLETED' ? 'COMPLETED' : 'ENROLLED'
+      existing.enrollmentDate = new Date().toISOString()
+      this.saveState()
+      return existing
+    }
 
     const learner = this.getUser(learnerId) || { fullName: 'John Learner' }
 
@@ -710,9 +762,12 @@ class MockDataStore {
       session.currentEnrollment -= 1
     }
 
-    this.state.enrollments = this.state.enrollments.filter(
-      (e) => !(String(e.learnerId) === String(learnerId) && String(e.sessionId) === String(sessionId))
-    )
+    this.state.enrollments = this.state.enrollments.map((e) => {
+      if (String(e.learnerId) === String(learnerId) && String(e.sessionId) === String(sessionId)) {
+        return { ...e, status: 'CANCELLED' }
+      }
+      return e
+    })
     this.saveState()
     return true
   }

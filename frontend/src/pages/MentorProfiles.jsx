@@ -8,6 +8,7 @@ const STATUS_BADGES = {
   APPROVED: 'badge-approved',
   REJECTED: 'badge-cancelled',
   BLOCKED: 'badge-cancelled',
+  REVOKED: 'badge-cancelled',
 }
 
 function MentorProfiles() {
@@ -67,22 +68,22 @@ function MentorProfiles() {
     fetchData()
   }, [])
 
-  const handleStatusChange = async (mentorId, newStatus) => {
+  const handleStatusChange = async (mentorId, newStatus, email) => {
     try {
       setActionLoading(true)
-      await updateMentorStatus(mentorId, newStatus)
+      await updateMentorStatus(mentorId, newStatus, email)
       setMessage({ type: 'success', text: `Mentor status updated to ${newStatus}.` })
       
       // Update local state immediately
       setMentors((prev) =>
-        prev.map((m) => (m.id === mentorId ? { ...m, status: newStatus } : m))
+        prev.map((m) => (m.id === mentorId || (email && m.email === email) ? { ...m, status: newStatus } : m))
       )
-      if (selectedMentor?.id === mentorId) {
+      if (selectedMentor && (selectedMentor.id === mentorId || (email && selectedMentor.email === email))) {
         setSelectedMentor((prev) => ({ ...prev, status: newStatus }))
       }
     } catch (err) {
       console.error('Failed to update status:', err)
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to update mentor status.' })
+      setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Failed to update mentor status.' })
     } finally {
       setActionLoading(false)
     }
@@ -98,13 +99,20 @@ function MentorProfiles() {
     const res = { ALL: mentors.length, PENDING: 0, APPROVED: 0, REJECTED: 0, BLOCKED: 0 }
     mentors.forEach((m) => {
       const s = m.status || 'APPROVED'
-      if (res[s] !== undefined) res[s]++
+      if (s === 'BLOCKED' || s === 'REVOKED') {
+        res.BLOCKED++
+      } else if (res[s] !== undefined) {
+        res[s]++
+      }
     })
     return res
   }, [mentors])
 
   const filteredMentors = useMemo(() => {
     if (statusFilter === 'ALL') return mentors
+    if (statusFilter === 'BLOCKED') {
+      return mentors.filter((m) => (m.status || 'APPROVED') === 'BLOCKED' || (m.status || 'APPROVED') === 'REVOKED')
+    }
     return mentors.filter((m) => (m.status || 'APPROVED') === statusFilter)
   }, [mentors, statusFilter])
 
@@ -132,7 +140,7 @@ function MentorProfiles() {
           { key: 'PENDING', label: 'Pending Review', count: counts.PENDING, color: '#fef08a' },
           { key: 'APPROVED', label: 'Approved', count: counts.APPROVED, color: '#86efac' },
           { key: 'REJECTED', label: 'Rejected', count: counts.REJECTED, color: '#fca5a5' },
-          { key: 'BLOCKED', label: 'Blocked', count: counts.BLOCKED, color: '#cbd5e1' },
+          { key: 'BLOCKED', label: 'Revoked / Blocked', count: counts.BLOCKED, color: '#cbd5e1' },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -274,7 +282,7 @@ function MentorProfiles() {
                         type="button"
                         className="action-btn"
                         style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.5)', padding: '4px 10px', fontSize: '0.78rem' }}
-                        onClick={() => handleStatusChange(mentor.id, 'APPROVED')}
+                        onClick={() => handleStatusChange(mentor.id, 'APPROVED', mentor.email)}
                         disabled={actionLoading}
                       >
                         Approve
@@ -283,7 +291,7 @@ function MentorProfiles() {
                         type="button"
                         className="action-btn delete"
                         style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                        onClick={() => handleStatusChange(mentor.id, 'REJECTED')}
+                        onClick={() => handleStatusChange(mentor.id, 'REJECTED', mentor.email)}
                         disabled={actionLoading}
                       >
                         Decline
@@ -292,23 +300,36 @@ function MentorProfiles() {
                   )}
 
                   {status === 'APPROVED' && (
-                    <button
-                      type="button"
-                      className="action-btn delete"
-                      style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                      onClick={() => handleStatusChange(mentor.id, 'BLOCKED')}
-                      disabled={actionLoading}
-                    >
-                      Revoke / Block
-                    </button>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        type="button"
+                        className="action-btn delete"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                        onClick={() => handleStatusChange(mentor.id, 'BLOCKED', mentor.email)}
+                        disabled={actionLoading}
+                        title="Revoke mentor approval and prevent login"
+                      >
+                        Revoke Access
+                      </button>
+                      <button
+                        type="button"
+                        className="action-btn delete"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', opacity: 0.85 }}
+                        onClick={() => handleStatusChange(mentor.id, 'REJECTED', mentor.email)}
+                        disabled={actionLoading}
+                        title="Reject mentor"
+                      >
+                        Reject
+                      </button>
+                    </div>
                   )}
 
-                  {(status === 'REJECTED' || status === 'BLOCKED') && (
+                  {(status === 'REJECTED' || status === 'BLOCKED' || status === 'REVOKED') && (
                     <button
                       type="button"
                       className="action-btn"
                       style={{ background: 'rgba(66, 96, 229, 0.25)', color: '#93a5ff', borderColor: 'rgba(66, 96, 229, 0.5)', padding: '4px 10px', fontSize: '0.78rem' }}
-                      onClick={() => handleStatusChange(mentor.id, 'APPROVED')}
+                      onClick={() => handleStatusChange(mentor.id, 'APPROVED', mentor.email)}
                       disabled={actionLoading}
                     >
                       Re-Approve
@@ -411,7 +432,7 @@ function MentorProfiles() {
                         type="button"
                         className="action-btn"
                         style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.5)' }}
-                        onClick={() => handleStatusChange(selectedMentor.id, 'APPROVED')}
+                        onClick={() => handleStatusChange(selectedMentor.id, 'APPROVED', selectedMentor.email)}
                         disabled={actionLoading}
                       >
                         Approve Application
@@ -419,7 +440,7 @@ function MentorProfiles() {
                       <button
                         type="button"
                         className="action-btn delete"
-                        onClick={() => handleStatusChange(selectedMentor.id, 'REJECTED')}
+                        onClick={() => handleStatusChange(selectedMentor.id, 'REJECTED', selectedMentor.email)}
                         disabled={actionLoading}
                       >
                         Reject Application
@@ -427,10 +448,10 @@ function MentorProfiles() {
                       <button
                         type="button"
                         className="action-btn delete"
-                        onClick={() => handleStatusChange(selectedMentor.id, 'BLOCKED')}
+                        onClick={() => handleStatusChange(selectedMentor.id, 'BLOCKED', selectedMentor.email)}
                         disabled={actionLoading}
                       >
-                        Block
+                        Revoke Access
                       </button>
                     </>
                   )}
@@ -440,28 +461,28 @@ function MentorProfiles() {
                       <button
                         type="button"
                         className="action-btn delete"
-                        onClick={() => handleStatusChange(selectedMentor.id, 'BLOCKED')}
+                        onClick={() => handleStatusChange(selectedMentor.id, 'BLOCKED', selectedMentor.email)}
                         disabled={actionLoading}
                       >
-                        Block Account
+                        Revoke Access
                       </button>
                       <button
                         type="button"
                         className="action-btn delete"
-                        onClick={() => handleStatusChange(selectedMentor.id, 'REJECTED')}
+                        onClick={() => handleStatusChange(selectedMentor.id, 'REJECTED', selectedMentor.email)}
                         disabled={actionLoading}
                       >
-                        Reject
+                        Reject Mentor
                       </button>
                     </>
                   )}
 
-                  {(status === 'REJECTED' || status === 'BLOCKED') && (
+                  {(status === 'REJECTED' || status === 'BLOCKED' || status === 'REVOKED') && (
                     <button
                       type="button"
                       className="action-btn"
                       style={{ background: 'rgba(66, 96, 229, 0.25)', color: '#93a5ff', borderColor: 'rgba(66, 96, 229, 0.5)' }}
-                      onClick={() => handleStatusChange(selectedMentor.id, 'APPROVED')}
+                      onClick={() => handleStatusChange(selectedMentor.id, 'APPROVED', selectedMentor.email)}
                       disabled={actionLoading}
                     >
                       Re-Approve Mentor

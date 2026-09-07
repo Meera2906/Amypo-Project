@@ -5,6 +5,7 @@ import CapacityBar from '../components/layout/CapacityBar'
 import * as sessionService from '../services/sessionService'
 import * as subjectService from '../services/subjectService'
 import * as enrollmentService from '../services/enrollmentService'
+import { submitFeedback } from '../services/feedbackService'
 import mockStore from '../services/mockDataStore'
 
 const statusColors = {
@@ -19,9 +20,20 @@ function SessionList() {
   const [sessions, setSessions] = useState([])
   const [fetchedSubjects, setFetchedSubjects] = useState([])
   const [enrolledSessionIds, setEnrolledSessionIds] = useState(new Set())
+  const [feedbackSubmittedIds, setFeedbackSubmittedIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [filterStatus, setFilterStatus] = useState('ALL')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState('DATE_ASC')
+  const [selectedSubject, setSelectedSubject] = useState('ALL')
+
+  // Feedback Modal
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [feedbackSession, setFeedbackSession] = useState(null)
+  const [feedbackRating, setFeedbackRating] = useState(5)
+  const [feedbackComment, setFeedbackComment] = useState('')
+  const [submittingFeedback, setSubmittingFeedback] = useState(false)
 
   // Create Modal
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -62,18 +74,22 @@ function SessionList() {
     }
   }, [user])
 
+  const isMentor = user?.role === 'MENTOR'
+  const isLearner = !user || user.role === 'LEARNER'
+
   const fetchSessions = async () => {
     try {
       setLoading(true)
-      const response = await sessionService.getAll(0, 50)
+      const mentorParam = isMentor ? user?.id : null
+      const response = await sessionService.getAll(0, 200, mentorParam)
       const data = response?.content !== undefined
         ? response.content
         : (response?.data?.content !== undefined
           ? response.data.content
-          : (Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : mockStore.getSessions())))
-      setSessions(Array.isArray(data) && data.length > 0 ? data : mockStore.getSessions())
+          : (Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : mockStore.getSessions(mentorParam))))
+      setSessions(Array.isArray(data) && data.length > 0 ? data : mockStore.getSessions(mentorParam))
     } catch (err) {
-      setSessions(mockStore.getSessions())
+      setSessions(mockStore.getSessions(isMentor ? user?.id : null))
     } finally {
       setLoading(false)
     }
@@ -99,11 +115,33 @@ function SessionList() {
       try {
         const enrollments = await enrollmentService.getMyEnrollments(learnerId)
         const list = Array.isArray(enrollments) ? enrollments : (enrollments?.data || mockStore.getEnrollmentsForLearner(learnerId))
-        const ids = new Set(list.map((e) => Number(e.sessionId || e.session?.id)))
+        const activeList = list.filter((e) => {
+          const s = (e.status || '').toUpperCase()
+          const sessStatus = (e.sessionStatus || e.session?.status || '').toUpperCase()
+          return s === 'ENROLLED' || s === 'ATTENDED' || s === 'COMPLETED' || sessStatus === 'COMPLETED'
+        })
+        const ids = new Set(activeList.map((e) => Number(e.sessionId || e.session?.id)))
         setEnrolledSessionIds(ids)
+        const submitted = new Set(
+          list
+            .filter((e) => e.feedbackSubmitted)
+            .map((e) => Number(e.sessionId || e.session?.id))
+        )
+        setFeedbackSubmittedIds(submitted)
       } catch (e) {
         const list = mockStore.getEnrollmentsForLearner(learnerId)
-        setEnrolledSessionIds(new Set(list.map((e) => Number(e.sessionId))))
+        const activeList = list.filter((e) => {
+          const s = (e.status || '').toUpperCase()
+          const sessStatus = (e.sessionStatus || e.session?.status || '').toUpperCase()
+          return s === 'ENROLLED' || s === 'ATTENDED' || s === 'COMPLETED' || sessStatus === 'COMPLETED'
+        })
+        setEnrolledSessionIds(new Set(activeList.map((e) => Number(e.sessionId))))
+        const submitted = new Set(
+          list
+            .filter((e) => e.feedbackSubmitted)
+            .map((e) => Number(e.sessionId))
+        )
+        setFeedbackSubmittedIds(submitted)
       }
     }
   }
@@ -112,7 +150,7 @@ function SessionList() {
     fetchSessions()
     fetchSubjects()
     fetchLearnerEnrollments()
-  }, [learnerId])
+  }, [learnerId, user?.id, user?.role])
 
   const defaultSubjects = useMemo(() => [
     { id: 1, name: 'Computer Science' },
@@ -135,14 +173,29 @@ function SessionList() {
 
     try {
       const mentorId = user?.id || 2
+      const mentorFullName = user?.fullName || 'Bob Mentor'
+      const mentorEmail = user?.email || 'mentor@loomlearn.com'
+      const mentorDepartment = user?.department || 'Computer Science'
+
+      const chosenSubId = Number(createForm.subject?.id || subjectOptions[0]?.id || 1)
+      const chosenSub = subjectOptions.find((s) => Number(s.id) === chosenSubId) || { id: chosenSubId, name: 'Computer Science' }
+
       await sessionService.create({
         title,
         description: createForm.description,
         startTime: createForm.startTime,
         endTime: createForm.endTime,
         maxCapacity: Number(createForm.maxCapacity),
-        mentor: { id: mentorId },
-        subject: { id: Number(createForm.subject?.id || subjectOptions[0]?.id || 1) },
+        mentor: {
+          id: mentorId,
+          fullName: mentorFullName,
+          email: mentorEmail,
+          department: mentorDepartment,
+        },
+        subject: {
+          id: chosenSub.id,
+          name: chosenSub.name,
+        },
       })
       setShowCreateModal(false)
       setMessage({ type: 'success', text: 'Tutoring session scheduled successfully!' })
@@ -254,25 +307,164 @@ function SessionList() {
     }
   }
 
+  // Learner Cancel Enrollment Action
+  const handleCancelEnrollment = async (sessionId, sessionTitle) => {
+    if (!sessionId) return
+    if (!window.confirm(`Are you sure you want to cancel your enrollment in "${sessionTitle || 'this session'}"?`)) {
+      return
+    }
+
+    try {
+      setActionLoading(true)
+      await enrollmentService.cancelEnrollment(learnerId, sessionId)
+      setMessage({ type: 'success', text: `Enrollment in "${sessionTitle || 'session'}" cancelled successfully.` })
+      setEnrolledSessionIds((prev) => {
+        const next = new Set(prev)
+        next.delete(Number(sessionId))
+        return next
+      })
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId && s.currentEnrollment > 0 ? { ...s, currentEnrollment: s.currentEnrollment - 1 } : s))
+      )
+      if (selectedSession?.id === sessionId && selectedSession.currentEnrollment > 0) {
+        setSelectedSession((prev) => ({ ...prev, currentEnrollment: prev.currentEnrollment - 1 }))
+      }
+      await fetchSessions()
+      await fetchLearnerEnrollments()
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Failed to cancel enrollment.' })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Learner Submit Feedback Handler
+  const handleOpenFeedback = (session) => {
+    setFeedbackSession(session)
+    setFeedbackRating(5)
+    setFeedbackComment('')
+    setShowFeedbackModal(true)
+  }
+
+  const handleSubmitFeedback = async (event) => {
+    event.preventDefault()
+    if (!feedbackSession?.id) return
+
+    try {
+      setSubmittingFeedback(true)
+      await submitFeedback({
+        learnerId,
+        sessionId: feedbackSession.id,
+        rating: Number(feedbackRating),
+        comment: feedbackComment.trim(),
+      })
+      setMessage({ type: 'success', text: `Thank you! Your feedback for "${feedbackSession.title}" has been submitted.` })
+      setShowFeedbackModal(false)
+      setFeedbackSubmittedIds((prev) => new Set([...prev, Number(feedbackSession.id)]))
+      await fetchLearnerEnrollments()
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to submit feedback' })
+    } finally {
+      setSubmittingFeedback(false)
+    }
+  }
+
   const handleOpenDetail = (session) => {
     setSelectedSession(session)
     setShowDetailModal(true)
   }
 
+  const isCurrentUserMentor = (session) => {
+    if (!user) return false
+    const matchId = session.mentor?.id != null && user.id != null && String(session.mentor.id) === String(user.id)
+    const matchEmail = Boolean(
+      session.mentor?.email &&
+      user.email &&
+      session.mentor.email.toLowerCase().trim() === user.email.toLowerCase().trim()
+    )
+    return matchId || matchEmail
+  }
+
   const canManageSession = (session) => {
     if (user?.role === 'ACADEMIC_ADMIN' || user?.role === 'ADMIN') return true
     if (user?.role === 'MENTOR') {
-      return !session.mentor?.id || String(session.mentor.id) === String(user.id) || true
+      return isCurrentUserMentor(session)
     }
     return false
   }
 
-  const isLearner = !user || user.role === 'LEARNER'
-
   const filteredSessions = useMemo(() => {
-    if (filterStatus === 'ALL') return sessions
-    return sessions.filter((s) => s.status === filterStatus)
-  }, [sessions, filterStatus])
+    let list = [...sessions]
+
+    // 1. Role-based Mentor Isolation:
+    // If logged in as MENTOR, only load and display sessions taught by this mentor
+    if (isMentor) {
+      list = list.filter((s) => isCurrentUserMentor(s))
+    }
+
+    // 2. Lifecycle status filter
+    if (filterStatus !== 'ALL') {
+      list = list.filter((s) => s.status === filterStatus)
+    }
+
+    // 3. Subject filter
+    if (selectedSubject !== 'ALL') {
+      list = list.filter(
+        (s) =>
+          String(s.subject?.id) === String(selectedSubject) ||
+          (s.subject?.name && s.subject.name.toLowerCase() === selectedSubject.toLowerCase())
+      )
+    }
+
+    // 4. Multi-field search (specific session title, mentor name/email, subject name)
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim()
+      list = list.filter((s) => {
+        const titleMatch = (s.title || '').toLowerCase().includes(term)
+        const descMatch = (s.description || '').toLowerCase().includes(term)
+        const mentorNameMatch = (s.mentor?.fullName || '').toLowerCase().includes(term)
+        const mentorEmailMatch = (s.mentor?.email || '').toLowerCase().includes(term)
+        const subjectMatch = (s.subject?.name || '').toLowerCase().includes(term)
+        return titleMatch || descMatch || mentorNameMatch || mentorEmailMatch || subjectMatch
+      })
+    }
+
+    // 5. Sorting
+    list.sort((a, b) => {
+      if (sortBy === 'MENTOR_ASC') {
+        const nameA = a.mentor?.fullName || ''
+        const nameB = b.mentor?.fullName || ''
+        return nameA.localeCompare(nameB)
+      }
+      if (sortBy === 'MENTOR_DESC') {
+        const nameA = a.mentor?.fullName || ''
+        const nameB = b.mentor?.fullName || ''
+        return nameB.localeCompare(nameA)
+      }
+      if (sortBy === 'SUBJECT_ASC') {
+        const subA = a.subject?.name || ''
+        const subB = b.subject?.name || ''
+        return subA.localeCompare(subB)
+      }
+      if (sortBy === 'SUBJECT_DESC') {
+        const subA = a.subject?.name || ''
+        const subB = b.subject?.name || ''
+        return subB.localeCompare(subA)
+      }
+      if (sortBy === 'CAPACITY_DESC') {
+        const remainingA = (a.maxCapacity || 10) - (a.currentEnrollment || 0)
+        const remainingB = (b.maxCapacity || 10) - (b.currentEnrollment || 0)
+        return remainingB - remainingA
+      }
+      if (sortBy === 'DATE_DESC') {
+        return new Date(b.startTime || 0) - new Date(a.startTime || 0)
+      }
+      // Default: DATE_ASC
+      return new Date(a.startTime || 0) - new Date(b.startTime || 0)
+    })
+
+    return list
+  }, [sessions, isMentor, user, filterStatus, selectedSubject, searchTerm, sortBy])
 
   const formatDateTime = (dtStr) => {
     if (!dtStr) return 'Not scheduled'
@@ -284,18 +476,23 @@ function SessionList() {
     }
   }
 
+  const pageTitle = isMentor ? 'My Mentoring Sessions' : 'Tutoring Sessions'
+  const pageSubtitle = isMentor
+    ? `Sessions scheduled and taught by ${user?.fullName || 'you'}. Manage your schedules and classroom capacity.`
+    : 'Explore peer tutoring lessons across faculty mentors, search topics, and enroll in interactive sessions.'
+
   return (
     <div className="page container">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2>Tutoring Sessions</h2>
+          <h2>{pageTitle}</h2>
           <p style={{ margin: '4px 0 0', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            Interactive peer tutoring lessons with live capacity tracking and lifecycle controls
+            {pageSubtitle}
           </p>
         </div>
 
         {(user?.role === 'MENTOR' || user?.role === 'ACADEMIC_ADMIN' || user?.role === 'ADMIN') && (
-          <button type="button" className="primary-btn btn-primary" onClick={() => setShowCreateModal(true)}>
+          <button id="add-session-btn" data-testid="add-session-btn" type="button" className="primary-btn btn-primary" onClick={() => setShowCreateModal(true)}>
             + Add New Session
           </button>
         )}
@@ -307,35 +504,230 @@ function SessionList() {
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {['ALL', 'SCHEDULED', 'ACTIVE', 'COMPLETED', 'CANCELLED'].map((st) => (
-          <button
-            key={st}
-            type="button"
-            className={`timeline-filter-btn ${filterStatus === st ? 'active' : ''}`}
-            onClick={() => setFilterStatus(st)}
+      {/* Search and Sort Toolbar */}
+      <div
+        className="search-filter-toolbar"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '14px',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: '16px',
+        }}
+      >
+        {/* Search Input */}
+        <div style={{ position: 'relative', flex: '1 1 280px', minWidth: '240px' }}>
+          <input
+            id="session-search-input"
+            data-testid="session-search-input"
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search by session title, mentor, or subject..."
             style={{
-              background: filterStatus === st ? 'var(--color-royal-blue)' : 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid ' + (filterStatus === st ? 'var(--color-vivid-blue)' : 'var(--glass-border)'),
-              color: filterStatus === st ? '#fff' : 'var(--text-secondary)',
-              borderRadius: '20px',
-              padding: '6px 14px',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              width: '100%',
+              padding: '10px 36px 10px 38px',
+              borderRadius: '10px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              color: '#fff',
+              fontSize: '0.9rem',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+          />
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-secondary)',
+              pointerEvents: 'none',
             }}
           >
-            {st === 'ALL' ? 'All Sessions' : st.charAt(0) + st.slice(1).toLowerCase()}
-          </button>
-        ))}
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                padding: '2px 6px',
+              }}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Dropdowns for Subject & Sorting */}
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label htmlFor="session-subject-filter" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              Subject:
+            </label>
+            <select
+              id="session-subject-filter"
+              data-testid="session-subject-filter"
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              style={{
+                padding: '9px 12px',
+                borderRadius: '8px',
+                background: 'rgba(16, 20, 36, 0.95)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#fff',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="ALL">All Subjects</option>
+              {subjectOptions.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label htmlFor="session-sort-select" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              Sort:
+            </label>
+            <select
+              id="session-sort-select"
+              data-testid="session-sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{
+                padding: '9px 12px',
+                borderRadius: '8px',
+                background: 'rgba(16, 20, 36, 0.95)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#fff',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="DATE_ASC">Date: Earliest First</option>
+              <option value="DATE_DESC">Date: Latest First</option>
+              <option value="MENTOR_ASC">Mentor: A → Z</option>
+              <option value="MENTOR_DESC">Mentor: Z → A</option>
+              <option value="SUBJECT_ASC">Subject: A → Z</option>
+              <option value="SUBJECT_DESC">Subject: Z → A</option>
+              <option value="CAPACITY_DESC">Seats: Most Available</option>
+            </select>
+          </div>
+
+          {(searchTerm || selectedSubject !== 'ALL' || sortBy !== 'DATE_ASC' || filterStatus !== 'ALL') && (
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => {
+                setSearchTerm('')
+                setSelectedSubject('ALL')
+                setSortBy('DATE_ASC')
+                setFilterStatus('ALL')
+              }}
+              style={{ padding: '7px 12px', fontSize: '0.8rem', borderRadius: '8px' }}
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Filter Tabs and Result Count */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {['ALL', 'SCHEDULED', 'ACTIVE', 'COMPLETED', 'CANCELLED'].map((st) => (
+            <button
+              key={st}
+              type="button"
+              className={`timeline-filter-btn ${filterStatus === st ? 'active' : ''}`}
+              onClick={() => setFilterStatus(st)}
+              style={{
+                background: filterStatus === st ? 'var(--color-royal-blue)' : 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid ' + (filterStatus === st ? 'var(--color-vivid-blue)' : 'var(--glass-border)'),
+                color: filterStatus === st ? '#fff' : 'var(--text-secondary)',
+                borderRadius: '20px',
+                padding: '6px 14px',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {st === 'ALL' ? 'All Sessions' : st.charAt(0) + st.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          Showing <strong style={{ color: '#fff' }}>{filteredSessions.length}</strong> session{filteredSessions.length === 1 ? '' : 's'}
+          {isMentor && ' (Assigned to you)'}
+        </div>
       </div>
 
       {loading ? <div className="loader" data-testid="loader">Loading...</div> : null}
 
       {!loading && filteredSessions.length === 0 && (
-        <div className="empty-state" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          No sessions available in this category.
+        <div className="empty-state" style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '16px', border: '1px dashed var(--glass-border)', margin: '20px 0' }}>
+          {isMentor && sessions.length === 0 ? (
+            <>
+              <h3 style={{ color: '#fff', margin: '0 0 8px' }}>No Sessions Scheduled Yet</h3>
+              <p style={{ margin: '0 0 16px', fontSize: '0.9rem' }}>
+                You haven't scheduled any tutoring sessions yet. Click below to create your first session.
+              </p>
+              <button type="button" className="primary-btn" onClick={() => setShowCreateModal(true)}>
+                + Schedule Your First Session
+              </button>
+            </>
+          ) : searchTerm || selectedSubject !== 'ALL' || filterStatus !== 'ALL' ? (
+            <>
+              <h3 style={{ color: '#fff', margin: '0 0 8px' }}>No Matching Sessions Found</h3>
+              <p style={{ margin: '0 0 16px', fontSize: '0.9rem' }}>
+                No sessions match your search keyword or selected filters.
+              </p>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => {
+                  setSearchTerm('')
+                  setSelectedSubject('ALL')
+                  setFilterStatus('ALL')
+                }}
+              >
+                Clear Filters
+              </button>
+            </>
+          ) : (
+            'No sessions available in this category.'
+          )}
         </div>
       )}
 
@@ -510,22 +902,69 @@ function SessionList() {
                 {/* Learner Enrollment Action */}
                 {isLearner && !isManaged && (
                   <div>
-                    {isEnrolled ? (
-                      <span
-                        style={{
-                          fontSize: '0.78rem',
-                          fontWeight: 600,
-                          color: '#34d399',
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        Enrolled
-                      </span>
-                    ) : isCompleted ? (
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Completed</span>
+                    {isCompleted ? (
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Completed</span>
+                        {isEnrolled && (
+                          feedbackSubmittedIds.has(Number(session.id)) ? (
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                color: '#34d399',
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                              }}
+                            >
+                              Feedback Submitted
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="primary-btn"
+                              style={{
+                                background: 'linear-gradient(135deg, #d97706, #f59e0b)',
+                                border: 'none',
+                                padding: '4px 10px',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)',
+                              }}
+                              onClick={() => handleOpenFeedback(session)}
+                            >
+                              Give Feedback
+                            </button>
+                          )
+                        )}
+                      </div>
+                    ) : isEnrolled ? (
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <span
+                          style={{
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            color: '#34d399',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                          }}
+                        >
+                          Enrolled
+                        </span>
+                        <button
+                          type="button"
+                          className="action-btn delete"
+                          style={{ padding: '3px 8px', fontSize: '0.75rem' }}
+                          onClick={() => handleCancelEnrollment(session.id, session.title)}
+                          disabled={actionLoading}
+                          title="Cancel your enrollment in this session"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     ) : isFull ? (
                       <span
                         style={{
@@ -677,12 +1116,44 @@ function SessionList() {
                     </div>
                   ) : isLearner ? (
                     <div>
-                      {isEnrolled ? (
-                        <span style={{ color: '#34d399', fontWeight: 600, fontSize: '0.9rem' }}>
-                          You are enrolled in this session
-                        </span>
-                      ) : isCompleted ? (
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>This session has completed</span>
+                      {isCompleted ? (
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>This session has completed</span>
+                          {isEnrolled && (
+                            feedbackSubmittedIds.has(Number(selectedSession.id)) ? (
+                              <span style={{ color: '#34d399', fontSize: '0.88rem', fontWeight: 600 }}>
+                                ✓ Feedback submitted
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="primary-btn"
+                                style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)', border: 'none', padding: '6px 14px', fontSize: '0.85rem' }}
+                                onClick={() => {
+                                  setShowDetailModal(false)
+                                  handleOpenFeedback(selectedSession)
+                                }}
+                              >
+                                Give Feedback
+                              </button>
+                            )
+                          )}
+                        </div>
+                      ) : isEnrolled ? (
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <span style={{ color: '#34d399', fontWeight: 600, fontSize: '0.9rem' }}>
+                            ✓ You are enrolled in this session
+                          </span>
+                          <button
+                            type="button"
+                            className="action-btn delete"
+                            style={{ padding: '4px 12px', fontSize: '0.8rem' }}
+                            onClick={() => handleCancelEnrollment(selectedSession.id, selectedSession.title)}
+                            disabled={actionLoading}
+                          >
+                            Cancel Enrollment
+                          </button>
+                        </div>
                       ) : isFull ? (
                         <span style={{ color: '#fca5a5', fontSize: '0.9rem' }}>This session is full</span>
                       ) : (
@@ -872,11 +1343,69 @@ function SessionList() {
             <button type="button" className="secondary-btn" onClick={() => setShowCreateModal(false)}>
               Cancel
             </button>
-            <button type="submit" className="primary-btn">
+            <button id="submit-create-session-btn" data-testid="submit-create-session-btn" type="submit" className="primary-btn">
               Schedule Session
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Submit Feedback Modal */}
+      <Modal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} title="Submit Session Feedback">
+        {feedbackSession && (
+          <form className="modal-form" onSubmit={handleSubmitFeedback}>
+            <div style={{ padding: '12px 14px', background: 'rgba(66, 96, 229, 0.1)', borderRadius: '8px', border: '1px solid rgba(66, 96, 229, 0.25)', marginBottom: '8px' }}>
+              <strong style={{ display: 'block', color: 'var(--color-soft-white)', fontSize: '0.95rem' }}>
+                {feedbackSession.title || 'Tutoring Session'}
+              </strong>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                Mentor: {feedbackSession.mentor?.fullName || 'Assigned Mentor'}
+              </span>
+            </div>
+
+            <div className="field">
+              <label htmlFor="session-feedback-rating">Your Rating (1 to 5 Stars)</label>
+              <select
+                id="session-feedback-rating"
+                value={feedbackRating}
+                onChange={(e) => setFeedbackRating(Number(e.target.value))}
+                style={{ padding: '10px', borderRadius: '8px', background: 'rgba(16, 20, 36, 0.95)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#fff' }}
+              >
+                <option value={5}>⭐⭐⭐⭐⭐ (5 - Excellent session)</option>
+                <option value={4}>⭐⭐⭐⭐ (4 - Very good and insightful)</option>
+                <option value={3}>⭐⭐⭐ (3 - Satisfactory lesson)</option>
+                <option value={2}>⭐⭐ (2 - Needs improvement)</option>
+                <option value={1}>⭐ (1 - Did not meet expectations)</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="session-feedback-comment">Comments & Insights</label>
+              <textarea
+                id="session-feedback-comment"
+                rows="4"
+                placeholder="Share what you learned, mentor clarity, pacing, or recommendations..."
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '14px' }}>
+              <button type="button" className="secondary-btn" onClick={() => setShowFeedbackModal(false)}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="primary-btn"
+                style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)', border: 'none' }}
+                disabled={submittingFeedback}
+              >
+                {submittingFeedback ? 'Submitting...' : 'Submit Feedback'}
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   )

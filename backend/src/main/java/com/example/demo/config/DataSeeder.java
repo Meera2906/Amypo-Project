@@ -78,84 +78,88 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         // 3. Seed Learners
+        seedUser("John Learner", "learner@loomlearn.com", UserRole.LEARNER, UserStatus.APPROVED, "Computer Science", "Dedicated learner passionate about distributed computing and machine learning.");
         AcademicUser learner1 = seedUser("John Doe", "john.doe@loomlearn.com", UserRole.LEARNER, UserStatus.APPROVED, "Computer Science", "Aspiring software developer.");
         AcademicUser learner2 = seedUser("Jane Smith", "jane.smith@loomlearn.com", UserRole.LEARNER, UserStatus.APPROVED, "Mathematics", "Passionate math enthusiast.");
         AcademicUser learner3 = seedUser("David Miller", "david.miller@loomlearn.com", UserRole.LEARNER, UserStatus.APPROVED, "Physics", "Physics major exploring quantum mechanics.");
 
         // 4. Seed Mentors
+        seedUser("Bob Mentor", "mentor@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Computer Science", "Lead Software Architecture & Artificial Intelligence Mentor with 6+ years experience.");
         AcademicUser mentor1 = seedUser("Dr. Robert Chen", "robert.chen@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Computer Science", "Specializes in Data Structures, Algorithms, and Distributed Systems. 5+ years experience.");
         AcademicUser mentor2 = seedUser("Prof. Alex Rivera", "alex.rivera@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Mathematics", "Focuses on Linear Algebra, Calculus, and Applied Statistics.");
         AcademicUser mentor3 = seedUser("Elena Rostova", "elena.rostova@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Physics", "Quantum Mechanics specialist helping students master core physics.");
         AcademicUser mentor4 = seedUser("Marcus Vance", "marcus.vance@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Chemistry", "Organic Chemistry researcher helping learners understand reaction mechanisms.");
 
-        // 5. Seed Tutoring Sessions
-        LocalDateTime now = LocalDateTime.now();
+        // 5. Seed Tutoring Sessions (only if no sessions exist yet)
+        if (sessionRepository.count() == 0) {
+            LocalDateTime now = LocalDateTime.now();
 
-        TutoringSession session1 = seedSession(
-                "Advanced Data Structures & Algorithms",
-                "Deep dive into graph traversals, binary search trees, and dynamic programming optimization.",
-                now.plusDays(2).withHour(14).withMinute(0),
-                now.plusDays(2).withHour(16).withMinute(0),
-                15,
-                3,
-                SessionStatus.SCHEDULED,
-                mentor1,
-                cs
-        );
+            TutoringSession session1 = seedSession(
+                    "Advanced Data Structures & Algorithms",
+                    "Deep dive into graph traversals, binary search trees, and dynamic programming optimization.",
+                    now.plusDays(2).withHour(14).withMinute(0),
+                    now.plusDays(2).withHour(16).withMinute(0),
+                    15,
+                    3,
+                    SessionStatus.SCHEDULED,
+                    mentor1,
+                    cs
+            );
 
-        TutoringSession session2 = seedSession(
-                "Linear Algebra & Matrix Transformations",
-                "Understanding eigenvectors, eigenvalues, and matrix factorizations for data science.",
-                now.plusDays(3).withHour(10).withMinute(30),
-                now.plusDays(3).withHour(12).withMinute(0),
-                20,
-                2,
-                SessionStatus.SCHEDULED,
-                mentor2,
-                math
-        );
+            TutoringSession session2 = seedSession(
+                    "Linear Algebra & Matrix Transformations",
+                    "Understanding eigenvectors, eigenvalues, and matrix factorizations for data science.",
+                    now.plusDays(3).withHour(10).withMinute(30),
+                    now.plusDays(3).withHour(12).withMinute(0),
+                    20,
+                    2,
+                    SessionStatus.SCHEDULED,
+                    mentor2,
+                    math
+            );
 
-        TutoringSession session3 = seedSession(
-                "Fundamentals of Quantum Physics",
-                "Interactive session covering wave-particle duality and Schrodinger wave equations.",
-                now.minusDays(1).withHour(15).withMinute(0),
-                now.minusDays(1).withHour(17).withMinute(0),
-                10,
-                2,
-                SessionStatus.COMPLETED,
-                mentor3,
-                physics
-        );
+            TutoringSession session3 = seedSession(
+                    "Fundamentals of Quantum Physics",
+                    "Interactive session covering wave-particle duality and Schrodinger wave equations.",
+                    now.minusDays(1).withHour(15).withMinute(0),
+                    now.minusDays(1).withHour(17).withMinute(0),
+                    10,
+                    2,
+                    SessionStatus.COMPLETED,
+                    mentor3,
+                    physics
+            );
 
-        TutoringSession session4 = seedSession(
-                "Organic Chemistry Reaction Mechanisms",
-                "Comprehensive review of substitution, elimination, and addition organic chemistry reactions.",
-                now.plusDays(5).withHour(11).withMinute(0),
-                now.plusDays(5).withHour(13).withMinute(0),
-                12,
-                1,
-                SessionStatus.SCHEDULED,
-                mentor4,
-                chemistry
-        );
+            TutoringSession session4 = seedSession(
+                    "Organic Chemistry Reaction Mechanisms",
+                    "Comprehensive review of substitution, elimination, and addition organic chemistry reactions.",
+                    now.plusDays(5).withHour(11).withMinute(0),
+                    now.plusDays(5).withHour(13).withMinute(0),
+                    12,
+                    1,
+                    SessionStatus.SCHEDULED,
+                    mentor4,
+                    chemistry
+            );
 
-        // 6. Seed Session Enrollments
-        seedEnrollment(learner1, session1, EnrollmentStatus.ENROLLED, false);
-        seedEnrollment(learner2, session1, EnrollmentStatus.ENROLLED, false);
-        seedEnrollment(learner3, session1, EnrollmentStatus.ENROLLED, false);
+            // 6. Seed Session Enrollments
+            seedEnrollment(learner1, session1, EnrollmentStatus.ENROLLED, false);
+            seedEnrollment(learner2, session1, EnrollmentStatus.ENROLLED, false);
+            seedEnrollment(learner3, session1, EnrollmentStatus.ENROLLED, false);
 
-        seedEnrollment(learner1, session2, EnrollmentStatus.ENROLLED, false);
-        seedEnrollment(learner2, session2, EnrollmentStatus.ENROLLED, false);
+            seedEnrollment(learner1, session2, EnrollmentStatus.ENROLLED, false);
+            seedEnrollment(learner2, session2, EnrollmentStatus.ENROLLED, false);
 
-        seedEnrollment(learner1, session3, EnrollmentStatus.ATTENDED, true);
-        seedEnrollment(learner3, session3, EnrollmentStatus.ATTENDED, true);
+            seedEnrollment(learner1, session3, EnrollmentStatus.ATTENDED, true);
+            seedEnrollment(learner3, session3, EnrollmentStatus.ATTENDED, true);
 
-        seedEnrollment(learner2, session4, EnrollmentStatus.ENROLLED, false);
+            seedEnrollment(learner2, session4, EnrollmentStatus.ENROLLED, false);
 
-        // 7. Seed Mentor Feedback
-        seedFeedback(5, "Dr. Robert Chen provided exceptionally clear explanations for dynamic programming graphs!", learner1, mentor1, session1);
-        seedFeedback(5, "Prof. Rivera made matrix transformations intuitive and easy to follow.", learner2, mentor2, session2);
-        seedFeedback(4, "Great session on Quantum Physics. Very engaging presentation style.", learner3, mentor3, session3);
+            // 7. Seed Mentor Feedback
+            seedFeedback(5, "Dr. Robert Chen provided exceptionally clear explanations for dynamic programming graphs!", learner1, mentor1, session1);
+            seedFeedback(5, "Prof. Rivera made matrix transformations intuitive and easy to follow.", learner2, mentor2, session2);
+            seedFeedback(4, "Great session on Quantum Physics. Very engaging presentation style.", learner3, mentor3, session3);
+        }
     }
 
     private StudySubject seedSubject(String name, String description) {

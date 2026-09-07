@@ -40,13 +40,13 @@ export const getMentorStats = async (id) => {
   }
 }
 
-export const updateMentorStatus = async (id, status) => {
+export const updateMentorStatus = async (id, status, email) => {
   try {
     const res = await api.put(`/users/${id}/status`, null, { params: { status } })
-    mockStore.updateMentorStatus(id, status)
+    mockStore.updateMentorStatus(id, status, email)
     return res?.data !== undefined ? res.data : res
   } catch (err) {
-    return mockStore.updateMentorStatus(id, status)
+    return mockStore.updateMentorStatus(id, status, email)
   }
 }
 

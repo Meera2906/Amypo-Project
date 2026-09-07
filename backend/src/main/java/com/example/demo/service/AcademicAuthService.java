@@ -59,15 +59,27 @@ public class AcademicAuthService {
         AcademicUser user = userRepository.findByEmail(dto.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
                 
+        if (user.getRole() == UserRole.MENTOR) {
+            if (user.getStatus() == UserStatus.REJECTED) {
+                throw new BusinessValidationException("Mentor application was rejected. Access denied.");
+            }
+            if (user.getStatus() == UserStatus.BLOCKED || user.getStatus() == UserStatus.REVOKED) {
+                throw new BusinessValidationException("Mentor account has been revoked or blocked. Access denied.");
+            }
+            if (user.getStatus() == UserStatus.PENDING) {
+                throw new BusinessValidationException("Mentor application is pending review. Please wait for approval.");
+            }
+        } else {
+            if (user.getStatus() == UserStatus.BLOCKED || user.getStatus() == UserStatus.REVOKED) {
+                throw new BusinessValidationException("Account is blocked. Please contact support.");
+            }
+            if (user.getStatus() == UserStatus.REJECTED) {
+                throw new BusinessValidationException("Account registration was rejected.");
+            }
+        }
+
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             throw new BusinessValidationException("Invalid Credentials.");
-        }
-        
-        if (user.getStatus() == UserStatus.BLOCKED) {
-            throw new BusinessValidationException("Account is blocked. Please contact support.");
-        }
-        if (user.getStatus() == UserStatus.REJECTED) {
-            throw new BusinessValidationException("Account registration was rejected.");
         }
         
         String token = jwtUtil.generateToken(user.getEmail());

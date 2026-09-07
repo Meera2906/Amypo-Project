@@ -15,14 +15,35 @@ export const login = async (credentials) => {
     }
     return data
   } catch (error) {
+    // If backend replied with an explicit response error, DO NOT bypass via mock store!
+    if (error.response && error.response.data) {
+      const msg = error.response.data.message || 'Invalid Credentials.'
+      const customErr = new Error(msg)
+      customErr.response = error.response
+      throw customErr
+    }
+
     // Check mock store fallback for demo accounts & offline testing
+    mockStore.syncFromStorage()
     const mockUser = mockStore.findUserByEmail(credentials?.email)
     if (mockUser) {
-      if (mockUser.status === 'BLOCKED') {
-        throw new Error('Account is blocked. Please contact support.')
-      }
-      if (mockUser.status === 'REJECTED') {
-        throw new Error('Account registration was rejected.')
+      if (mockUser.role === 'MENTOR') {
+        if (mockUser.status === 'REJECTED') {
+          throw new Error('Mentor application was rejected. Access denied.')
+        }
+        if (mockUser.status === 'BLOCKED' || mockUser.status === 'REVOKED') {
+          throw new Error('Mentor account has been revoked or blocked. Access denied.')
+        }
+        if (mockUser.status === 'PENDING') {
+          throw new Error('Mentor application is pending review. Please wait for approval.')
+        }
+      } else {
+        if (mockUser.status === 'BLOCKED' || mockUser.status === 'REVOKED') {
+          throw new Error('Account is blocked. Please contact support.')
+        }
+        if (mockUser.status === 'REJECTED') {
+          throw new Error('Account registration was rejected.')
+        }
       }
       return {
         id: mockUser.id,

@@ -1,6 +1,9 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { Provider, useSelector } from 'react-redux'
+import { Provider, useDispatch, useSelector } from 'react-redux'
 import store from './store/store'
+import { logout } from './store/slices/authSlice'
+import mockStore from './services/mockDataStore'
 import Navbar from './components/layout/Navbar'
 import DotField from './components/DotField'
 import Home from './pages/Home'
@@ -19,8 +22,30 @@ function ProtectedRoute({ children }) {
 }
 
 function AppRoutes() {
+  const dispatch = useDispatch()
   const token = useSelector((state) => state.auth.token)
   const user = useSelector((state) => state.auth.user)
+
+  // Enforce mentor status: if a logged-in mentor is rejected or revoked/blocked, log them out immediately
+  useEffect(() => {
+    if (token && user?.role === 'MENTOR') {
+      const checkMentorStatus = () => {
+        mockStore.syncFromStorage()
+        const mentorRecord = mockStore.findUserByEmail(user.email)
+        if (
+          mentorRecord &&
+          (mentorRecord.status === 'REJECTED' ||
+            mentorRecord.status === 'BLOCKED' ||
+            mentorRecord.status === 'REVOKED')
+        ) {
+          dispatch(logout())
+        }
+      }
+      checkMentorStatus()
+      window.addEventListener('storage', checkMentorStatus)
+      return () => window.removeEventListener('storage', checkMentorStatus)
+    }
+  }, [token, user, dispatch])
 
   if (!token) {
     return (

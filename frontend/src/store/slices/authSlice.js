@@ -24,7 +24,8 @@ export const login = createAsyncThunk('auth/login', async (credentials, { reject
     }))
     return payload
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Invalid Credentials.')
+    const errorMsg = error.response?.data?.message || error.message || 'Invalid Credentials.'
+    return rejectWithValue(errorMsg)
   }
 })
 

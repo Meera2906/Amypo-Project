@@ -6,6 +6,8 @@ import com.example.demo.service.SessionManagementService;
 import com.example.demo.exception.BusinessValidationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,8 +22,15 @@ public class SessionController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<TutoringSession>> getAll(Pageable pageable) {
-        Page<TutoringSession> sessions = sessionManagementService.getAvailableSessions(pageable);
+    public ResponseEntity<Page<TutoringSession>> getAll(
+            @RequestParam(required = false) Long mentorId,
+            @PageableDefault(size = 200, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<TutoringSession> sessions;
+        if (mentorId != null) {
+            sessions = sessionManagementService.getSessionsByMentor(mentorId, pageable);
+        } else {
+            sessions = sessionManagementService.getAvailableSessions(pageable);
+        }
         return ResponseEntity.ok(sessions);
     }
 

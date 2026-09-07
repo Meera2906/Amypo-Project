@@ -4,5 +4,6 @@ public enum UserStatus {
     PENDING,
     APPROVED,
     REJECTED,
-    BLOCKED
+    BLOCKED,
+    REVOKED
 }

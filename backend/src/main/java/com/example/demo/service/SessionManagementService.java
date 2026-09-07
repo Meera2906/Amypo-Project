@@ -12,8 +12,13 @@ import com.example.demo.repository.StudySubjectRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import com.example.demo.entity.SessionEnrollment;
+import com.example.demo.enums.EnrollmentStatus;
+import com.example.demo.repository.SessionEnrollmentRepository;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.List;
 
 @Service
 public class SessionManagementService {
@@ -21,20 +26,23 @@ public class SessionManagementService {
     private final TutoringSessionRepository sessionRepository;
     private final AcademicUserRepository userRepository;
     private final StudySubjectRepository subjectRepository;
+    private final SessionEnrollmentRepository enrollmentRepository;
 
     public SessionManagementService(TutoringSessionRepository sessionRepository,
                                     AcademicUserRepository userRepository,
-                                    StudySubjectRepository subjectRepository) {
+                                    StudySubjectRepository subjectRepository,
+                                    SessionEnrollmentRepository enrollmentRepository) {
         this.sessionRepository = sessionRepository;
         this.userRepository = userRepository;
         this.subjectRepository = subjectRepository;
+        this.enrollmentRepository = enrollmentRepository;
     }
 
     public TutoringSession createSession(TutoringSession session) {
         if (session.getTitle() == null || session.getTitle().trim().isEmpty()) {
             throw new BusinessValidationException("Title cannot be empty");
         }
-        if (session.getStartTime() == null || session.getStartTime().isBefore(LocalDateTime.now())) {
+        if (session.getStartTime() == null || session.getStartTime().isBefore(LocalDateTime.now().minusMinutes(5))) {
             throw new BusinessValidationException("Start time must be in the future");
         }
         if (session.getEndTime() == null || session.getEndTime().isBefore(session.getStartTime())) {
@@ -85,13 +93,23 @@ public class SessionManagementService {
         return sessionRepository.save(session);
     }
 
+    @Transactional
     public void cancelSession(Long id) {
         TutoringSession session = sessionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found"));
         session.setStatus(SessionStatus.CANCELLED);
         sessionRepository.save(session);
+
+        List<SessionEnrollment> enrollments = enrollmentRepository.findBySessionId(id);
+        for (SessionEnrollment e : enrollments) {
+            if (e.getStatus() == EnrollmentStatus.ENROLLED) {
+                e.setStatus(EnrollmentStatus.CANCELLED);
+                enrollmentRepository.save(e);
+            }
+        }
     }
 
+    @Transactional
     public void updateSessionStatus(Long id, SessionStatus status) {
         TutoringSession session = sessionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found"));
@@ -103,6 +121,16 @@ public class SessionManagementService {
 
         session.setStatus(status);
         sessionRepository.save(session);
+
+        if (status == SessionStatus.COMPLETED) {
+            List<SessionEnrollment> enrollments = enrollmentRepository.findBySessionId(id);
+            for (SessionEnrollment e : enrollments) {
+                if (e.getStatus() == EnrollmentStatus.ENROLLED) {
+                    e.setStatus(EnrollmentStatus.ATTENDED);
+                    enrollmentRepository.save(e);
+                }
+            }
+        }
     }
 
     public Page<TutoringSession> getAvailableSessions(Pageable pageable) {
@@ -110,5 +138,9 @@ public class SessionManagementService {
                 Arrays.asList(SessionStatus.SCHEDULED, SessionStatus.ACTIVE, SessionStatus.COMPLETED),
                 pageable
         );
+    }
+
+    public Page<TutoringSession> getSessionsByMentor(Long mentorId, Pageable pageable) {
+        return sessionRepository.findByMentorId(mentorId, pageable);
     }
 }

@@ -7,7 +7,7 @@ export const getMyEnrollments = async (learnerId) => {
     const data = res?.content !== undefined
       ? res.content
       : (res?.data !== undefined ? res.data : res)
-    if (Array.isArray(data) && data.length > 0) {
+    if (Array.isArray(data)) {
       return data
     }
     return mockStore.getEnrollmentsForLearner(learnerId)

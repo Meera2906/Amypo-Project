@@ -13,6 +13,7 @@ import com.example.demo.repository.AcademicUserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 public class EnrollmentWorkflowService {
@@ -45,8 +46,18 @@ public class EnrollmentWorkflowService {
             throw new BusinessValidationException("Session capacity exceeded");
         }
 
-        if (enrollmentRepository.existsByLearnerIdAndSessionId(learnerId, sessionId)) {
-            throw new BusinessValidationException("Already enrolled in this session");
+        Optional<SessionEnrollment> existingOpt = enrollmentRepository.findByLearnerIdAndSessionId(learnerId, sessionId);
+        if (existingOpt.isPresent()) {
+            SessionEnrollment existing = existingOpt.get();
+            if (existing.getStatus() == EnrollmentStatus.ENROLLED || existing.getStatus() == EnrollmentStatus.ATTENDED) {
+                throw new BusinessValidationException("Already enrolled in this session");
+            }
+            existing.setStatus(EnrollmentStatus.ENROLLED);
+            existing.setEnrollmentDate(LocalDateTime.now());
+            session.setCurrentEnrollment((session.getCurrentEnrollment() != null ? session.getCurrentEnrollment() : 0) + 1);
+            sessionRepository.save(session);
+            enrollmentRepository.save(existing);
+            return;
         }
 
         SessionEnrollment enrollment = SessionEnrollment.builder()

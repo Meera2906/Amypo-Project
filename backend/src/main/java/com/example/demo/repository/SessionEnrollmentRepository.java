@@ -10,7 +10,9 @@ import java.util.Optional;
 @Repository
 public interface SessionEnrollmentRepository extends JpaRepository<SessionEnrollment, Long> {
     void deleteBySessionId(Long sessionId);
+    List<SessionEnrollment> findBySessionId(Long sessionId);
     List<SessionEnrollment> findByLearnerId(Long learnerId);
     boolean existsByLearnerIdAndSessionId(Long learnerId, Long sessionId);
+    Optional<SessionEnrollment> findByLearnerIdAndSessionId(Long learnerId, Long sessionId);
     Optional<SessionEnrollment> findByLearnerIdAndSessionIdAndStatus(Long learnerId, Long sessionId, EnrollmentStatus status);
 }

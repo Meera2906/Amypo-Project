@@ -42,12 +42,33 @@ function MyEnrollments() {
       const data = response?.content !== undefined
         ? response.content
         : (response?.data !== undefined ? response.data : response)
-      const list = Array.isArray(data) && data.length > 0 ? data : mockStore.getEnrollmentsForLearner(learnerId)
+      const list = Array.isArray(data) ? data : mockStore.getEnrollmentsForLearner(learnerId)
       setEnrollments(list)
     } catch (error) {
       setEnrollments(mockStore.getEnrollmentsForLearner(learnerId))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const resolveStatus = (enrollment) => {
+    const s = (enrollment?.status || '').toUpperCase()
+    const sessStatus = (enrollment?.sessionStatus || enrollment?.session?.status || '').toUpperCase()
+    if (s === 'CANCELLED' || s === 'DISCONTINUED' || sessStatus === 'CANCELLED') return 'CANCELLED'
+    if (s === 'COMPLETED' || s === 'ATTENDED' || sessStatus === 'COMPLETED') return 'COMPLETED'
+    return 'ENROLLED'
+  }
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'COMPLETED':
+      case 'ATTENDED':
+        return 'badge-approved'
+      case 'CANCELLED':
+        return 'badge-cancelled'
+      case 'ENROLLED':
+      default:
+        return 'badge-active'
     }
   }
 
@@ -195,7 +216,7 @@ function MyEnrollments() {
               <tr>
                 <th>Session Title</th>
                 <th>Mentor</th>
-                <th>Date</th>
+                <th>Schedule (Start & End)</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -204,7 +225,10 @@ function MyEnrollments() {
               {enrollments.map((enrollment) => {
                 const title = enrollment.sessionTitle || enrollment.session?.title || 'Tutoring Session'
                 const mentor = enrollment.mentorName || enrollment.session?.mentor?.fullName || 'Faculty Mentor'
-                const status = enrollment.status === 'COMPLETED' ? 'COMPLETED' : 'ENROLLED'
+                const status = resolveStatus(enrollment)
+                const isCancelled = status === 'CANCELLED'
+                const isCompleted = status === 'COMPLETED'
+                const isEnrolled = status === 'ENROLLED'
                 const feedbackSubmitted = !!enrollment.feedbackSubmitted
 
                 return (
@@ -226,13 +250,20 @@ function MyEnrollments() {
                       <span style={{ color: 'var(--color-soft-white)', fontWeight: 500 }}>{mentor}</span>
                     </td>
                     <td>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-                        {formatDateTime(enrollment.sessionStartTime)}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <span style={{ color: 'var(--color-soft-white)', fontSize: '0.84rem' }}>
+                          <strong style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Start: </strong>
+                          {formatDateTime(enrollment.sessionStartTime || enrollment.session?.startTime)}
+                        </span>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                          <strong style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>End: </strong>
+                          {formatDateTime(enrollment.sessionEndTime || enrollment.session?.endTime)}
+                        </span>
+                      </div>
                     </td>
                     <td>
                       <span
-                        className={`badge ${status === 'COMPLETED' ? 'badge-approved' : 'badge-active'}`}
+                        className={`badge ${getStatusBadge(status)}`}
                         style={{ fontSize: '0.75rem' }}
                       >
                         {status}
@@ -240,11 +271,21 @@ function MyEnrollments() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
-                        {/* Actions Column Logic:
-                            - If session is not yet completed: show Enrolled status
-                            - If session is COMPLETED and feedback not given: show a Give Feedback button
-                            - If feedback submitted: show a disabled tag ✓ Feedback Submitted */}
-                        {status !== 'COMPLETED' ? (
+                        {isCancelled ? (
+                          <span
+                            style={{
+                              fontSize: '0.78rem',
+                              color: '#fca5a5',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontWeight: 500,
+                            }}
+                          >
+                            Cancelled
+                          </span>
+                        ) : isEnrolled ? (
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <span
                               style={{
@@ -267,38 +308,40 @@ function MyEnrollments() {
                               Cancel
                             </button>
                           </div>
-                        ) : feedbackSubmitted ? (
-                          <span
-                            style={{
-                              fontSize: '0.78rem',
-                              fontWeight: 600,
-                              color: '#34d399',
-                              background: 'rgba(16, 185, 129, 0.15)',
-                              border: '1px solid rgba(16, 185, 129, 0.3)',
-                              padding: '4px 12px',
-                              borderRadius: '6px',
-                              cursor: 'default',
-                            }}
-                          >
-                            Feedback Submitted
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="primary-btn"
-                            style={{
-                              background: 'linear-gradient(135deg, #d97706, #f59e0b)',
-                              border: 'none',
-                              padding: '5px 14px',
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                              boxShadow: '0 2px 10px rgba(245, 158, 11, 0.3)',
-                            }}
-                            onClick={() => handleOpenFeedback(enrollment)}
-                          >
-                            Give Feedback
-                          </button>
-                        )}
+                        ) : isCompleted ? (
+                          feedbackSubmitted ? (
+                            <span
+                              style={{
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                color: '#34d399',
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                padding: '4px 12px',
+                                borderRadius: '6px',
+                                cursor: 'default',
+                              }}
+                            >
+                              Feedback Submitted
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="primary-btn"
+                              style={{
+                                background: 'linear-gradient(135deg, #d97706, #f59e0b)',
+                                border: 'none',
+                                padding: '5px 14px',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                boxShadow: '0 2px 10px rgba(245, 158, 11, 0.3)',
+                              }}
+                              onClick={() => handleOpenFeedback(enrollment)}
+                            >
+                              Give Feedback
+                            </button>
+                          )
+                        ) : null}
 
                         <button
                           type="button"
@@ -325,7 +368,10 @@ function MyEnrollments() {
             const title = enrollment.sessionTitle || enrollment.session?.title || 'Tutoring Session'
             const mentor = enrollment.mentorName || enrollment.session?.mentor?.fullName || 'Faculty Mentor'
             const subject = enrollment.subjectName || enrollment.session?.subject?.name || 'General'
-            const status = enrollment.status === 'COMPLETED' ? 'COMPLETED' : 'ENROLLED'
+            const status = resolveStatus(enrollment)
+            const isCancelled = status === 'CANCELLED'
+            const isCompleted = status === 'COMPLETED'
+            const isEnrolled = status === 'ENROLLED'
             const feedbackSubmitted = !!enrollment.feedbackSubmitted
 
             return (
@@ -344,7 +390,7 @@ function MyEnrollments() {
                 onClick={() => handleOpenDetail(enrollment)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                  <span className={`badge ${status === 'COMPLETED' ? 'badge-approved' : 'badge-active'}`}>
+                  <span className={`badge ${getStatusBadge(status)}`}>
                     {status}
                   </span>
                   <span
@@ -371,8 +417,12 @@ function MyEnrollments() {
                     <strong>{mentor}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-secondary)' }}>Date: </span>
-                    <span>{formatDateTime(enrollment.sessionStartTime)}</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>Start: </span>
+                    <span>{formatDateTime(enrollment.sessionStartTime || enrollment.session?.startTime)}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>End: </span>
+                    <span>{formatDateTime(enrollment.sessionEndTime || enrollment.session?.endTime)}</span>
                   </div>
                 </div>
 
@@ -407,48 +457,74 @@ function MyEnrollments() {
                   </button>
 
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {status !== 'COMPLETED' ? (
+                    {isCancelled ? (
                       <span
                         style={{
                           fontSize: '0.78rem',
-                          color: 'var(--color-light-blue)',
-                          background: 'rgba(66, 96, 229, 0.12)',
+                          color: '#fca5a5',
+                          background: 'rgba(239, 68, 68, 0.15)',
                           padding: '4px 10px',
                           borderRadius: '6px',
-                          border: '1px solid rgba(66, 96, 229, 0.25)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          fontWeight: 500,
                         }}
                       >
-                        Enrolled
+                        Cancelled
                       </span>
-                    ) : feedbackSubmitted ? (
-                      <span
-                        style={{
-                          fontSize: '0.78rem',
-                          fontWeight: 600,
-                          color: '#34d399',
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        Feedback Submitted
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="primary-btn"
-                        style={{
-                          background: 'linear-gradient(135deg, #d97706, #f59e0b)',
-                          border: 'none',
-                          padding: '5px 12px',
-                          fontSize: '0.8rem',
-                        }}
-                        onClick={() => handleOpenFeedback(enrollment)}
-                      >
-                        Give Feedback
-                      </button>
-                    )}
+                    ) : isEnrolled ? (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span
+                          style={{
+                            fontSize: '0.78rem',
+                            color: 'var(--color-light-blue)',
+                            background: 'rgba(66, 96, 229, 0.12)',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(66, 96, 229, 0.25)',
+                          }}
+                        >
+                          Enrolled
+                        </span>
+                        <button
+                          type="button"
+                          className="action-btn delete"
+                          style={{ padding: '3px 8px', fontSize: '0.75rem' }}
+                          onClick={() => handleCancel(enrollment.sessionId || enrollment.id, title)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : isCompleted ? (
+                      feedbackSubmitted ? (
+                        <span
+                          style={{
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            color: '#34d399',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                          }}
+                        >
+                          Feedback Submitted
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          style={{
+                            background: 'linear-gradient(135deg, #d97706, #f59e0b)',
+                            border: 'none',
+                            padding: '5px 12px',
+                            fontSize: '0.8rem',
+                          }}
+                          onClick={() => handleOpenFeedback(enrollment)}
+                        >
+                          Give Feedback
+                        </button>
+                      )
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -463,13 +539,16 @@ function MyEnrollments() {
           const title = selectedEnrollment.sessionTitle || selectedEnrollment.session?.title || 'Tutoring Session'
           const mentor = selectedEnrollment.mentorName || selectedEnrollment.session?.mentor?.fullName || 'Assigned Mentor'
           const subject = selectedEnrollment.subjectName || selectedEnrollment.session?.subject?.name || 'General'
-          const status = selectedEnrollment.status === 'COMPLETED' ? 'COMPLETED' : 'ENROLLED'
+          const status = resolveStatus(selectedEnrollment)
+          const isCancelled = status === 'CANCELLED'
+          const isCompleted = status === 'COMPLETED'
+          const isEnrolled = status === 'ENROLLED'
           const feedbackSubmitted = !!selectedEnrollment.feedbackSubmitted
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '12px' }}>
-                <span className={`badge ${status === 'COMPLETED' ? 'badge-approved' : 'badge-active'}`}>
+                <span className={`badge ${getStatusBadge(status)}`}>
                   Enrollment Status: {status}
                 </span>
                 <span style={{ fontSize: '0.85rem', color: 'var(--color-light-blue)' }}>{subject}</span>
@@ -490,15 +569,24 @@ function MyEnrollments() {
                 <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Mentor</span>
                   <strong style={{ display: 'block', color: 'var(--color-soft-white)', marginTop: '2px' }}>{mentor}</strong>
-                  {selectedEnrollment.mentorEmail && (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--color-light-blue)' }}>{selectedEnrollment.mentorEmail}</span>
+                  {(selectedEnrollment.mentorEmail || selectedEnrollment.session?.mentor?.email) && (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-light-blue)' }}>
+                      {selectedEnrollment.mentorEmail || selectedEnrollment.session?.mentor?.email}
+                    </span>
                   )}
                 </div>
 
                 <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Scheduled Time</span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Scheduled Start</span>
                   <strong style={{ display: 'block', color: 'var(--color-soft-white)', marginTop: '2px' }}>
-                    {formatDateTime(selectedEnrollment.sessionStartTime)}
+                    {formatDateTime(selectedEnrollment.sessionStartTime || selectedEnrollment.session?.startTime)}
+                  </strong>
+                </div>
+
+                <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Scheduled End</span>
+                  <strong style={{ display: 'block', color: 'var(--color-soft-white)', marginTop: '2px' }}>
+                    {formatDateTime(selectedEnrollment.sessionEndTime || selectedEnrollment.session?.endTime)}
                   </strong>
                 </div>
 
@@ -512,7 +600,20 @@ function MyEnrollments() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
                 <div>
-                  {status === 'COMPLETED' && !feedbackSubmitted && (
+                  {isCancelled && (
+                    <span style={{ color: '#fca5a5', fontSize: '0.88rem' }}>This enrollment has been cancelled</span>
+                  )}
+                  {isEnrolled && (
+                    <button
+                      type="button"
+                      className="action-btn delete"
+                      style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                      onClick={() => handleCancel(selectedEnrollment.sessionId || selectedEnrollment.id, title)}
+                    >
+                      Cancel Enrollment
+                    </button>
+                  )}
+                  {isCompleted && !feedbackSubmitted && (
                     <button
                       type="button"
                       className="primary-btn"
@@ -525,7 +626,7 @@ function MyEnrollments() {
                       Give Feedback
                     </button>
                   )}
-                  {feedbackSubmitted && (
+                  {isCompleted && feedbackSubmitted && (
                     <span style={{ color: '#34d399', fontSize: '0.88rem' }}>Feedback already provided</span>
                   )}
                 </div>

@@ -14,6 +14,8 @@ public interface TutoringSessionRepository extends JpaRepository<TutoringSession
     List<TutoringSession> findBySubjectId(Long subjectId);
     void deleteBySubjectId(Long subjectId);
     Page<TutoringSession> findByStatusIn(Collection<SessionStatus> statuses, Pageable pageable);
+    Page<TutoringSession> findByMentorId(Long mentorId, Pageable pageable);
+    Page<TutoringSession> findByMentorIdAndStatusIn(Long mentorId, Collection<SessionStatus> statuses, Pageable pageable);
     long countByStatus(SessionStatus status);
     long countByMentorId(Long mentorId);
     long countByMentorIdAndStatus(Long mentorId, SessionStatus status);

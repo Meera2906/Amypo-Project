@@ -52,7 +52,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Optional<AcademicUser> userOpt = academicUserRepository.findByEmail(email);
             if (userOpt.isPresent()) {
                 AcademicUser user = userOpt.get();
-                if (!"BLOCKED".equals(user.getStatus().name()) && !"REJECTED".equals(user.getStatus().name())) {
+                boolean isBlockedOrRevoked = "BLOCKED".equalsIgnoreCase(user.getStatus().name()) || "REVOKED".equalsIgnoreCase(user.getStatus().name());
+                boolean isRejected = "REJECTED".equalsIgnoreCase(user.getStatus().name());
+                boolean isPendingMentor = user.getRole() == com.example.demo.enums.UserRole.MENTOR && "PENDING".equalsIgnoreCase(user.getStatus().name());
+
+                if (!isBlockedOrRevoked && !isRejected && !isPendingMentor) {
                     List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                     authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
 
