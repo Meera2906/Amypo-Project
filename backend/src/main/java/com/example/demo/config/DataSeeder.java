@@ -83,7 +83,7 @@ public class DataSeeder implements CommandLineRunner {
         AcademicUser learner3 = seedUser("David Miller", "david.miller@loomlearn.com", UserRole.LEARNER, UserStatus.APPROVED, "Physics", "Physics major exploring quantum mechanics.");
 
         // 4. Seed Mentors
-        AcademicUser mentor1 = seedUser("Dr. Sarah Jenkins", "sarah.jenkins@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Computer Science", "Specializes in Data Structures, Algorithms, and Distributed Systems. 5+ years experience.");
+        AcademicUser mentor1 = seedUser("Dr. Robert Chen", "robert.chen@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Computer Science", "Specializes in Data Structures, Algorithms, and Distributed Systems. 5+ years experience.");
         AcademicUser mentor2 = seedUser("Prof. Alex Rivera", "alex.rivera@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Mathematics", "Focuses on Linear Algebra, Calculus, and Applied Statistics.");
         AcademicUser mentor3 = seedUser("Elena Rostova", "elena.rostova@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Physics", "Quantum Mechanics specialist helping students master core physics.");
         AcademicUser mentor4 = seedUser("Marcus Vance", "marcus.vance@loomlearn.com", UserRole.MENTOR, UserStatus.APPROVED, "Chemistry", "Organic Chemistry researcher helping learners understand reaction mechanisms.");
@@ -153,7 +153,7 @@ public class DataSeeder implements CommandLineRunner {
         seedEnrollment(learner2, session4, EnrollmentStatus.ENROLLED, false);
 
         // 7. Seed Mentor Feedback
-        seedFeedback(5, "Dr. Sarah Jenkins provided exceptionally clear explanations for dynamic programming graphs!", learner1, mentor1, session1);
+        seedFeedback(5, "Dr. Robert Chen provided exceptionally clear explanations for dynamic programming graphs!", learner1, mentor1, session1);
         seedFeedback(5, "Prof. Rivera made matrix transformations intuitive and easy to follow.", learner2, mentor2, session2);
         seedFeedback(4, "Great session on Quantum Physics. Very engaging presentation style.", learner3, mentor3, session3);
     }

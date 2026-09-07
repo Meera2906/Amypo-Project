@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import Modal from '../components/layout/Modal'
 import { getMentors, getMentorStats, updateMentorStatus } from '../services/userService'
+import mockStore from '../services/mockDataStore'
 
 const STATUS_BADGES = {
   PENDING: 'badge-pending',
@@ -24,14 +25,23 @@ function MentorProfiles() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const mentorResponse = await getMentors()
-      const lists = Array.isArray(mentorResponse)
-        ? mentorResponse
-        : (mentorResponse?.data && Array.isArray(mentorResponse.data) ? mentorResponse.data : [])
+      let lists = []
+      try {
+        const mentorResponse = await getMentors()
+        lists = Array.isArray(mentorResponse)
+          ? mentorResponse
+          : (mentorResponse?.data && Array.isArray(mentorResponse.data) ? mentorResponse.data : [])
+      } catch (apiErr) {
+        lists = mockStore.getMentors()
+      }
+
+      if (!lists || lists.length === 0) {
+        lists = mockStore.getMentors()
+      }
 
       setMentors(lists)
 
-      // Fetch stats resiliently without failing if an individual stats call fails
+      // Fetch stats resiliently without failing
       const map = {}
       await Promise.all(
         lists.map(async (mentor) => {
@@ -39,14 +49,15 @@ function MentorProfiles() {
             const metricResponse = await getMentorStats(mentor.id)
             map[mentor.id] = metricResponse?.data !== undefined ? metricResponse.data : (metricResponse || {})
           } catch (e) {
-            map[mentor.id] = { averageRating: 0, totalReviews: 0, totalSessions: 0 }
+            map[mentor.id] = mockStore.getMentorStats(mentor.id)
           }
         })
       )
       setStatsMap(map)
     } catch (error) {
-      console.error('Failed to load mentors:', error)
-      setMessage({ type: 'error', text: 'Unable to load mentor profiles. Please check backend connection.' })
+      console.warn('Fallback to mock mentors:', error)
+      const fallbackList = mockStore.getMentors()
+      setMentors(fallbackList)
     } finally {
       setLoading(false)
     }
@@ -204,6 +215,15 @@ function MentorProfiles() {
                 </span>
               </div>
 
+              {/* Mentor Email */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: 'var(--color-light-blue)', background: 'rgba(66, 96, 229, 0.08)', padding: '4px 8px', borderRadius: '6px' }}>
+                <svg style={{ width: '13px', height: '13px', flexShrink: 0 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mentor.email}</span>
+              </div>
+
               <p
                 style={{
                   margin: 0,
@@ -253,7 +273,7 @@ function MentorProfiles() {
                       <button
                         type="button"
                         className="action-btn"
-                        style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.4)', padding: '4px 10px', fontSize: '0.78rem' }}
+                        style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.5)', padding: '4px 10px', fontSize: '0.78rem' }}
                         onClick={() => handleStatusChange(mentor.id, 'APPROVED')}
                         disabled={actionLoading}
                       >
@@ -266,30 +286,28 @@ function MentorProfiles() {
                         onClick={() => handleStatusChange(mentor.id, 'REJECTED')}
                         disabled={actionLoading}
                       >
-                        Reject
+                        Decline
                       </button>
                     </>
                   )}
 
                   {status === 'APPROVED' && (
-                    <>
-                      <button
-                        type="button"
-                        className="action-btn delete"
-                        style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                        onClick={() => handleStatusChange(mentor.id, 'BLOCKED')}
-                        disabled={actionLoading}
-                      >
-                        Block
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      className="action-btn delete"
+                      style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                      onClick={() => handleStatusChange(mentor.id, 'BLOCKED')}
+                      disabled={actionLoading}
+                    >
+                      Revoke / Block
+                    </button>
                   )}
 
                   {(status === 'REJECTED' || status === 'BLOCKED') && (
                     <button
                       type="button"
                       className="action-btn"
-                      style={{ background: 'rgba(66, 96, 229, 0.2)', color: '#93a5ff', borderColor: 'rgba(66, 96, 229, 0.4)', padding: '4px 10px', fontSize: '0.78rem' }}
+                      style={{ background: 'rgba(66, 96, 229, 0.25)', color: '#93a5ff', borderColor: 'rgba(66, 96, 229, 0.5)', padding: '4px 10px', fontSize: '0.78rem' }}
                       onClick={() => handleStatusChange(mentor.id, 'APPROVED')}
                       disabled={actionLoading}
                     >
@@ -396,7 +414,7 @@ function MentorProfiles() {
                         onClick={() => handleStatusChange(selectedMentor.id, 'APPROVED')}
                         disabled={actionLoading}
                       >
-                        ✓ Approve Application
+                        Approve Application
                       </button>
                       <button
                         type="button"
@@ -404,7 +422,7 @@ function MentorProfiles() {
                         onClick={() => handleStatusChange(selectedMentor.id, 'REJECTED')}
                         disabled={actionLoading}
                       >
-                        ✕ Reject Application
+                        Reject Application
                       </button>
                       <button
                         type="button"

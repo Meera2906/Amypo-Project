@@ -38,6 +38,7 @@ function AppRoutes() {
       <main className="page-shell">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/dashboard" element={<Home />} />
           <Route path="/sessions" element={<SessionList />} />
           <Route path="/subjects" element={<SubjectList />} />
           <Route path="/enrollments" element={<MyEnrollments />} />
@@ -57,16 +58,15 @@ function App() {
         <div className="app-root-container">
           <div className="background-dotfield-wrapper">
             <DotField
-              dotRadius={2.8}
-              dotSpacing={40}
-              bulgeStrength={120}
-              glowRadius={550}
-              sparkle={true}
-              waveAmplitude={6}
+              dotRadius={3.0}
+              dotSpacing={32}
               cursorRadius={180}
-              gradientFrom="#7884d7"
-              gradientTo="#4260e5"
-              glowColor="#4260e5"
+              bulgeStrength={80}
+              waveAmplitude={0}
+              baseColor="rgba(255, 255, 255, 0.20)"
+              activeGradientFrom="#93c5fd"
+              activeGradientTo="#60a5fa"
+              glowColor="#60a5fa"
             />
           </div>
           <AppRoutes />

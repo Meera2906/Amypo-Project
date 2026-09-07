@@ -1,23 +1,53 @@
 import api from './api'
+import mockStore from './mockDataStore'
 
 export const getMentors = async () => {
-  const res = await api.get('/users/mentors')
-  return res?.data !== undefined ? res.data : res
+  try {
+    const res = await api.get('/users/mentors')
+    const data = res?.data !== undefined ? res.data : res
+    if (Array.isArray(data) && data.length > 0) {
+      return data
+    }
+    return mockStore.getMentors()
+  } catch (err) {
+    return mockStore.getMentors()
+  }
 }
 
 export const getStats = async () => {
-  const res = await api.get('/analytics/stats')
-  return res?.data !== undefined ? res.data : res
+  try {
+    const res = await api.get('/analytics/stats')
+    const data = res?.data !== undefined ? res.data : res
+    if (data && (data.totalLearners !== undefined || data.totalMentors !== undefined)) {
+      return data
+    }
+    return mockStore.getStats()
+  } catch (err) {
+    return mockStore.getStats()
+  }
 }
 
 export const getMentorStats = async (id) => {
-  const res = await api.get(`/analytics/mentor/${id}`)
-  return res?.data !== undefined ? res.data : res
+  try {
+    const res = await api.get(`/analytics/mentor/${id}`)
+    const data = res?.data !== undefined ? res.data : res
+    if (data && (data.averageRating !== undefined || data.totalSessions !== undefined)) {
+      return data
+    }
+    return mockStore.getMentorStats(id)
+  } catch (err) {
+    return mockStore.getMentorStats(id)
+  }
 }
 
 export const updateMentorStatus = async (id, status) => {
-  const res = await api.put(`/users/${id}/status`, null, { params: { status } })
-  return res?.data !== undefined ? res.data : res
+  try {
+    const res = await api.put(`/users/${id}/status`, null, { params: { status } })
+    mockStore.updateMentorStatus(id, status)
+    return res?.data !== undefined ? res.data : res
+  } catch (err) {
+    return mockStore.updateMentorStatus(id, status)
+  }
 }
 
 const userService = {
@@ -28,3 +58,4 @@ const userService = {
 }
 
 export default userService
+

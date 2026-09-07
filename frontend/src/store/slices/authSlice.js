@@ -56,6 +56,12 @@ const authSlice = createSlice({
       localStorage.removeItem('loom_token')
       localStorage.removeItem('loom_user')
     },
+    updateProfile: (state, action) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload }
+        localStorage.setItem('loom_user', JSON.stringify(state.user))
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -98,5 +104,5 @@ const authSlice = createSlice({
   },
 })
 
-export const { logout } = authSlice.actions
+export const { logout, updateProfile } = authSlice.actions
 export default authSlice.reducer

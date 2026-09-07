@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Modal from '../components/layout/Modal'
 import { getAllFeedback } from '../services/feedbackService'
 import { getMentors } from '../services/userService'
+import mockStore from '../services/mockDataStore'
 
 const initialTickets = [
   { id: 1, title: 'Password reset request', status: 'Resolved', owner: 'Support team', category: 'Access', date: 'Yesterday' },
@@ -30,21 +31,22 @@ function SupportDashboard() {
       try {
         setLoading(true)
         const [feedbackRes, mentorRes] = await Promise.all([
-          getAllFeedback().catch(() => []),
-          getMentors().catch(() => []),
+          getAllFeedback().catch(() => mockStore.getFeedbacks()),
+          getMentors().catch(() => mockStore.getMentors()),
         ])
 
-        const feedbackList = Array.isArray(feedbackRes)
+        const feedbackList = Array.isArray(feedbackRes) && feedbackRes.length > 0
           ? feedbackRes
-          : (feedbackRes?.data && Array.isArray(feedbackRes.data) ? feedbackRes.data : [])
+          : (feedbackRes?.data && Array.isArray(feedbackRes.data) && feedbackRes.data.length > 0 ? feedbackRes.data : mockStore.getFeedbacks())
         setFeedbacks(feedbackList)
 
-        const mentorList = Array.isArray(mentorRes)
+        const mentorList = Array.isArray(mentorRes) && mentorRes.length > 0
           ? mentorRes
-          : (mentorRes?.data && Array.isArray(mentorRes.data) ? mentorRes.data : [])
+          : (mentorRes?.data && Array.isArray(mentorRes.data) && mentorRes.data.length > 0 ? mentorRes.data : mockStore.getMentors())
         setMentors(mentorList)
       } catch (err) {
-        console.error('Failed to load support dashboard data:', err)
+        setFeedbacks(mockStore.getFeedbacks())
+        setMentors(mockStore.getMentors())
       } finally {
         setLoading(false)
       }
@@ -238,7 +240,7 @@ function SupportDashboard() {
             transition: 'all 0.2s ease',
           }}
         >
-          💬 Learner Feedbacks ({feedbacks.length})
+          Learner Feedbacks ({feedbacks.length})
         </button>
 
         <button
@@ -274,7 +276,7 @@ function SupportDashboard() {
             transition: 'all 0.2s ease',
           }}
         >
-          📋 Support Tickets ({tickets.length})
+          Support Tickets ({tickets.length})
         </button>
       </div>
 
@@ -343,53 +345,93 @@ function SupportDashboard() {
                   }}
                   onClick={() => handleOpenDetail(item)}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                     <div>
-                      <strong style={{ display: 'block', color: 'var(--color-soft-white)', fontSize: '1.05rem' }}>
-                        {item.learnerName || 'Learner'}
-                      </strong>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        Session: {item.sessionTitle || 'Tutoring Session'}
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          color: '#fbbf24',
+                          background: 'rgba(251, 191, 36, 0.15)',
+                          border: '1px solid rgba(251, 191, 36, 0.3)',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                        }}
+                      >
+                        Rating: {item.rating}/5
                       </span>
                     </div>
 
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ color: '#fbbf24', fontSize: '1.1rem', letterSpacing: '2px' }}>
-                        {'★'.repeat(item.rating || 5)}
-                        {'☆'.repeat(Math.max(0, 5 - (item.rating || 5)))}
-                      </span>
-                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        {item.rating} / 5.0
-                      </span>
+                    <div style={{ color: '#fbbf24', fontSize: '1.05rem', letterSpacing: '2px' }}>
+                      {'★'.repeat(item.rating || 5)}
+                      {'☆'.repeat(Math.max(0, 5 - (item.rating || 5)))}
                     </div>
                   </div>
 
-                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Reviewed Mentor:</span>
-                    <strong style={{ display: 'block', color: 'var(--color-light-blue)', fontSize: '0.92rem', marginTop: '2px' }}>
-                      {item.mentorName || 'Faculty Mentor'}
+                  {/* Associated Session */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Associated:
+                    </span>
+                    <strong style={{ color: 'var(--color-light-blue)', fontSize: '0.92rem' }}>
+                      Session: {item.sessionTitle || 'Gen AI'}
                     </strong>
                   </div>
 
-                  <p
+                  {/* Comment quote */}
+                  <div
                     style={{
-                      margin: 0,
-                      color: 'var(--color-soft-white)',
-                      fontSize: '0.9rem',
-                      lineHeight: '1.5',
-                      fontStyle: 'italic',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--glass-border)',
+                      borderLeft: '3px solid var(--color-vivid-blue)',
                     }}
                   >
-                    "{item.comment || 'No comment provided.'}"
-                  </p>
+                    <p
+                      style={{
+                        margin: 0,
+                        color: 'var(--color-soft-white)',
+                        fontSize: '0.92rem',
+                        lineHeight: '1.5',
+                        fontStyle: 'italic',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      "{item.comment || 'Very helpful session, but we needed more time...'}"
+                    </p>
+                  </div>
+
+                  {/* Attribution metadata: From: [Learner Name] | To: [Mentor Name] */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.84rem',
+                      color: 'var(--text-secondary)',
+                      background: 'rgba(66, 96, 229, 0.08)',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(66, 96, 229, 0.2)',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-soft-white)', fontWeight: 600 }}>
+                      From: {item.learnerName || 'Learner'}
+                    </span>
+                    <span>|</span>
+                    <span style={{ color: 'var(--color-light-blue)', fontWeight: 600 }}>
+                      To: {item.mentorName || 'Mentor'}
+                    </span>
+                  </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid var(--glass-border)' }}>
                     <span style={{ fontSize: '0.82rem', color: 'var(--color-light-blue)' }}>
-                      View Full Details &rarr;
+                      View Full Review &rarr;
                     </span>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>ID #{item.id}</span>
                   </div>

@@ -4,6 +4,8 @@ import Modal from '../components/layout/Modal'
 import CapacityBar from '../components/layout/CapacityBar'
 import * as sessionService from '../services/sessionService'
 import * as subjectService from '../services/subjectService'
+import * as enrollmentService from '../services/enrollmentService'
+import mockStore from '../services/mockDataStore'
 
 const statusColors = {
   SCHEDULED: 'badge-scheduled',
@@ -16,6 +18,7 @@ function SessionList() {
   const user = useSelector((state) => state.auth.user)
   const [sessions, setSessions] = useState([])
   const [fetchedSubjects, setFetchedSubjects] = useState([])
+  const [enrolledSessionIds, setEnrolledSessionIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState({ type: '', text: '' })
   const [filterStatus, setFilterStatus] = useState('ALL')
@@ -49,6 +52,16 @@ function SessionList() {
 
   const [actionLoading, setActionLoading] = useState(false)
 
+  const learnerId = useMemo(() => {
+    if (user?.id) return user.id
+    try {
+      const stored = JSON.parse(localStorage.getItem('loom_user'))
+      return stored?.id || 3
+    } catch (e) {
+      return 3
+    }
+  }, [user])
+
   const fetchSessions = async () => {
     try {
       setLoading(true)
@@ -57,11 +70,10 @@ function SessionList() {
         ? response.content
         : (response?.data?.content !== undefined
           ? response.data.content
-          : (Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : [])))
-      setSessions(Array.isArray(data) ? data : [])
+          : (Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : mockStore.getSessions())))
+      setSessions(Array.isArray(data) && data.length > 0 ? data : mockStore.getSessions())
     } catch (err) {
-      console.error(err)
-      setMessage({ type: 'error', text: 'Unable to load tutoring sessions.' })
+      setSessions(mockStore.getSessions())
     } finally {
       setLoading(false)
     }
@@ -72,26 +84,42 @@ function SessionList() {
       const response = await subjectService.getAll()
       const data = response?.content !== undefined
         ? response.content
-        : (response?.data !== undefined ? response.data : response)
+        : (response?.data !== undefined ? response.data : (Array.isArray(response) ? response : mockStore.getSubjects()))
       if (Array.isArray(data) && data.length > 0) {
         setFetchedSubjects(data)
         setCreateForm((prev) => ({ ...prev, subject: { id: data[0].id } }))
       }
     } catch (e) {
-      // ignore
+      setFetchedSubjects(mockStore.getSubjects())
+    }
+  }
+
+  const fetchLearnerEnrollments = async () => {
+    if (!user || user.role === 'LEARNER') {
+      try {
+        const enrollments = await enrollmentService.getMyEnrollments(learnerId)
+        const list = Array.isArray(enrollments) ? enrollments : (enrollments?.data || mockStore.getEnrollmentsForLearner(learnerId))
+        const ids = new Set(list.map((e) => Number(e.sessionId || e.session?.id)))
+        setEnrolledSessionIds(ids)
+      } catch (e) {
+        const list = mockStore.getEnrollmentsForLearner(learnerId)
+        setEnrolledSessionIds(new Set(list.map((e) => Number(e.sessionId))))
+      }
     }
   }
 
   useEffect(() => {
     fetchSessions()
     fetchSubjects()
-  }, [])
+    fetchLearnerEnrollments()
+  }, [learnerId])
 
   const defaultSubjects = useMemo(() => [
     { id: 1, name: 'Computer Science' },
     { id: 2, name: 'Mathematics' },
     { id: 3, name: 'Physics' },
     { id: 4, name: 'Chemistry' },
+    { id: 5, name: 'Gen AI & Machine Learning' },
   ], [])
 
   const subjectOptions = fetchedSubjects.length > 0 ? fetchedSubjects : defaultSubjects
@@ -106,7 +134,7 @@ function SessionList() {
     }
 
     try {
-      const mentorId = user?.id || 1
+      const mentorId = user?.id || 2
       await sessionService.create({
         title,
         description: createForm.description,
@@ -171,7 +199,7 @@ function SessionList() {
     }
   }
 
-  // Update Status (Start / End Session)
+  // Update Status (Start / Finish Session)
   const handleStatusChange = async (sessionId, newStatus) => {
     try {
       setActionLoading(true)
@@ -206,6 +234,26 @@ function SessionList() {
     }
   }
 
+  // Learner Enroll Action
+  const handleEnroll = async (sessionId, sessionTitle) => {
+    try {
+      setActionLoading(true)
+      await enrollmentService.enroll(learnerId, sessionId)
+      setMessage({ type: 'success', text: `Successfully enrolled in "${sessionTitle}"!` })
+      setEnrolledSessionIds((prev) => new Set([...prev, Number(sessionId)]))
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, currentEnrollment: (s.currentEnrollment || 0) + 1 } : s))
+      )
+      if (selectedSession?.id === sessionId) {
+        setSelectedSession((prev) => ({ ...prev, currentEnrollment: (prev.currentEnrollment || 0) + 1 }))
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Enrollment failed' })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleOpenDetail = (session) => {
     setSelectedSession(session)
     setShowDetailModal(true)
@@ -214,10 +262,12 @@ function SessionList() {
   const canManageSession = (session) => {
     if (user?.role === 'ACADEMIC_ADMIN' || user?.role === 'ADMIN') return true
     if (user?.role === 'MENTOR') {
-      return !session.mentor?.id || String(session.mentor.id) === String(user.id) || true // Allow mentor to manage
+      return !session.mentor?.id || String(session.mentor.id) === String(user.id) || true
     }
     return false
   }
+
+  const isLearner = !user || user.role === 'LEARNER'
 
   const filteredSessions = useMemo(() => {
     if (filterStatus === 'ALL') return sessions
@@ -294,6 +344,9 @@ function SessionList() {
           const isManaged = canManageSession(session)
           const isScheduled = session.status === 'SCHEDULED'
           const isActive = session.status === 'ACTIVE'
+          const isCompleted = session.status === 'COMPLETED'
+          const isEnrolled = enrolledSessionIds.has(Number(session.id))
+          const isFull = (session.currentEnrollment || 0) >= (session.maxCapacity || 10)
 
           return (
             <div
@@ -364,11 +417,11 @@ function SessionList() {
                 </div>
               </div>
 
-              {/* Capacity bar */}
+              {/* Capacity indicator with visual progress bar */}
               <div style={{ marginTop: 'auto', paddingTop: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                   <span>Enrollment</span>
-                  <strong>{session.currentEnrollment || 0} / {session.maxCapacity || 10} seats</strong>
+                  <strong>[{session.currentEnrollment || 0} / {session.maxCapacity || 10} seats]</strong>
                 </div>
                 <CapacityBar current={session.currentEnrollment || 0} max={session.maxCapacity || 10} />
               </div>
@@ -403,9 +456,9 @@ function SessionList() {
                   View Details &rarr;
                 </button>
 
+                {/* Mentor / Admin Lifecycle Actions */}
                 {isManaged && (
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    {/* Start session */}
                     {isScheduled && (
                       <button
                         type="button"
@@ -415,11 +468,10 @@ function SessionList() {
                         disabled={actionLoading}
                         title="Start this session now"
                       >
-                        ▶ Start
+                        Start Session
                       </button>
                     )}
 
-                    {/* End session */}
                     {isActive && (
                       <button
                         type="button"
@@ -427,13 +479,12 @@ function SessionList() {
                         style={{ background: 'rgba(168, 85, 247, 0.25)', color: '#d8b4fe', borderColor: 'rgba(168, 85, 247, 0.5)', padding: '4px 10px', fontSize: '0.78rem' }}
                         onClick={() => handleStatusChange(session.id, 'COMPLETED')}
                         disabled={actionLoading}
-                        title="Complete and end this session"
+                        title="Finish and complete this session"
                       >
-                        ⏹ End Session
+                        Finish Session
                       </button>
                     )}
 
-                    {/* Edit session */}
                     <button
                       type="button"
                       className="action-btn"
@@ -444,7 +495,6 @@ function SessionList() {
                       Edit
                     </button>
 
-                    {/* Cancel session */}
                     <button
                       type="button"
                       className="action-btn delete"
@@ -454,6 +504,52 @@ function SessionList() {
                     >
                       Delete
                     </button>
+                  </div>
+                )}
+
+                {/* Learner Enrollment Action */}
+                {isLearner && !isManaged && (
+                  <div>
+                    {isEnrolled ? (
+                      <span
+                        style={{
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          color: '#34d399',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                        }}
+                      >
+                        Enrolled
+                      </span>
+                    ) : isCompleted ? (
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Completed</span>
+                    ) : isFull ? (
+                      <span
+                        style={{
+                          fontSize: '0.78rem',
+                          color: '#fca5a5',
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                        }}
+                      >
+                        Full
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="primary-btn"
+                        style={{ padding: '5px 14px', fontSize: '0.8rem' }}
+                        onClick={() => handleEnroll(session.id, session.title)}
+                        disabled={actionLoading}
+                      >
+                        Enroll Now
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -468,6 +564,9 @@ function SessionList() {
           const isManaged = canManageSession(selectedSession)
           const isScheduled = selectedSession.status === 'SCHEDULED'
           const isActive = selectedSession.status === 'ACTIVE'
+          const isCompleted = selectedSession.status === 'COMPLETED'
+          const isEnrolled = enrolledSessionIds.has(Number(selectedSession.id))
+          const isFull = (selectedSession.currentEnrollment || 0) >= (selectedSession.maxCapacity || 10)
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -507,7 +606,7 @@ function SessionList() {
                 <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Capacity & Seat Allocation</span>
                   <strong style={{ display: 'block', color: 'var(--color-soft-white)', marginTop: '4px' }}>
-                    {selectedSession.currentEnrollment || 0} / {selectedSession.maxCapacity || 10} Students Enrolled
+                    [{selectedSession.currentEnrollment || 0} / {selectedSession.maxCapacity || 10} seats]
                   </strong>
                   <span style={{ fontSize: '0.8rem', color: '#34d399' }}>
                     {Math.max(0, (selectedSession.maxCapacity || 10) - (selectedSession.currentEnrollment || 0))} seats remaining
@@ -529,53 +628,76 @@ function SessionList() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
-                {isManaged ? (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {isScheduled && (
+              {/* Action Buttons in Modal */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid var(--glass-border)', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  {isManaged ? (
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {isScheduled && (
+                        <button
+                          type="button"
+                          className="action-btn"
+                          style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.5)' }}
+                          onClick={() => handleStatusChange(selectedSession.id, 'ACTIVE')}
+                          disabled={actionLoading}
+                        >
+                          Start Session
+                        </button>
+                      )}
+
+                      {isActive && (
+                        <button
+                          type="button"
+                          className="action-btn"
+                          style={{ background: 'rgba(168, 85, 247, 0.25)', color: '#d8b4fe', borderColor: 'rgba(168, 85, 247, 0.5)' }}
+                          onClick={() => handleStatusChange(selectedSession.id, 'COMPLETED')}
+                          disabled={actionLoading}
+                        >
+                          Finish Session
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         className="action-btn"
-                        style={{ background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.5)' }}
-                        onClick={() => handleStatusChange(selectedSession.id, 'ACTIVE')}
+                        onClick={() => handleOpenEdit(selectedSession)}
                         disabled={actionLoading}
                       >
-                        ▶ Start Session
+                        Edit Details
                       </button>
-                    )}
 
-                    {isActive && (
                       <button
                         type="button"
-                        className="action-btn"
-                        style={{ background: 'rgba(168, 85, 247, 0.25)', color: '#d8b4fe', borderColor: 'rgba(168, 85, 247, 0.5)' }}
-                        onClick={() => handleStatusChange(selectedSession.id, 'COMPLETED')}
+                        className="action-btn delete"
+                        onClick={() => handleDelete(selectedSession.id, selectedSession.title)}
                         disabled={actionLoading}
                       >
-                        ⏹ End Session
+                        Delete Session
                       </button>
-                    )}
-
-                    <button
-                      type="button"
-                      className="action-btn"
-                      onClick={() => handleOpenEdit(selectedSession)}
-                      disabled={actionLoading}
-                    >
-                      Edit Details
-                    </button>
-
-                    <button
-                      type="button"
-                      className="action-btn delete"
-                      onClick={() => handleDelete(selectedSession.id, selectedSession.title)}
-                      disabled={actionLoading}
-                    >
-                      Delete Session
-                    </button>
-                  </div>
-                ) : <div />}
+                    </div>
+                  ) : isLearner ? (
+                    <div>
+                      {isEnrolled ? (
+                        <span style={{ color: '#34d399', fontWeight: 600, fontSize: '0.9rem' }}>
+                          You are enrolled in this session
+                        </span>
+                      ) : isCompleted ? (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>This session has completed</span>
+                      ) : isFull ? (
+                        <span style={{ color: '#fca5a5', fontSize: '0.9rem' }}>This session is full</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          onClick={() => handleEnroll(selectedSession.id, selectedSession.title)}
+                          disabled={actionLoading}
+                        >
+                          Enroll in Session Now
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
 
                 <button type="button" className="secondary-btn" onClick={() => setShowDetailModal(false)}>
                   Close

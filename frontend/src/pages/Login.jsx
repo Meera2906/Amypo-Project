@@ -70,14 +70,15 @@ function Login() {
       {/* Background Interactive Canvas */}
       <div className="login-dotfield-bg">
         <DotField
-          dotRadius={1.5}
-          dotSpacing={22}
-          cursorRadius={160}
-          bulgeStrength={70}
+          dotRadius={3.0}
+          dotSpacing={32}
+          cursorRadius={180}
+          bulgeStrength={80}
           waveAmplitude={0}
-          baseColor="rgba(255, 255, 255, 0.12)"
-          activeGradientFrom="#7884d7"
-          activeGradientTo="#4260e5"
+          baseColor="rgba(255, 255, 255, 0.20)"
+          activeGradientFrom="#93c5fd"
+          activeGradientTo="#60a5fa"
+          glowColor="#60a5fa"
         />
       </div>
 
