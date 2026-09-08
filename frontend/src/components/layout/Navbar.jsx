@@ -19,7 +19,7 @@ function Navbar() {
     ],
     MENTOR: [
       { to: '/', label: 'Home' },
-      { to: '/sessions', label: 'Sessions' },
+      { to: '/sessions', label: 'My Sessions' },
       { to: '/subjects', label: 'Subjects' },
     ],
     ACADEMIC_ADMIN: [

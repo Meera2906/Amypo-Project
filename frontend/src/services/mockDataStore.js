@@ -145,6 +145,12 @@ const defaultSubjects = [
     level: 'Advanced',
     description: 'Deep neural networks, transformer architectures, reinforcement learning, and generative modeling.',
   },
+  {
+    id: 6,
+    name: 'English',
+    level: 'Intermediate',
+    description: 'Academic essay writing, rhetorical argumentation, literary analysis, and advanced professional communication.',
+  },
 ]
 
 const defaultSessions = [
@@ -207,6 +213,18 @@ const defaultSessions = [
     status: 'SCHEDULED',
     mentor: { id: 9, fullName: 'Marcus Vance', department: 'Chemistry', email: 'marcus.vance@loomlearn.com' },
     subject: { id: 4, name: 'Chemistry' },
+  },
+  {
+    id: 7,
+    title: 'Academic Writing & Rhetorical Analysis',
+    description: 'Master structured thesis argumentation, evidence synthesis, and academic literature critique.',
+    startTime: '2026-09-12T10:00',
+    endTime: '2026-09-12T12:00',
+    maxCapacity: 15,
+    currentEnrollment: 4,
+    status: 'SCHEDULED',
+    mentor: { id: 2, fullName: 'Bob Mentor', department: 'English & Communications', email: 'mentor@loomlearn.com' },
+    subject: { id: 6, name: 'English' },
   },
 ]
 
@@ -425,6 +443,36 @@ class MockDataStore {
             feedbacks: Array.isArray(parsed.feedbacks) ? parsed.feedbacks : this.state.feedbacks,
             activities: Array.isArray(parsed.activities) ? parsed.activities : this.state.activities,
           }
+
+          if (Array.isArray(this.state.subjects) && !this.state.subjects.some((s) => (s.name || '').toLowerCase() === 'english')) {
+            this.state.subjects.push({
+              id: 6,
+              name: 'English',
+              level: 'Intermediate',
+              description: 'Academic essay writing, rhetorical argumentation, literary analysis, and advanced professional communication.',
+            })
+            this.saveState()
+          }
+
+          // Deduplicate sessions in storage to clean up past multiple creation calls
+          if (Array.isArray(this.state.sessions)) {
+            const seen = new Set()
+            const uniqueSessions = []
+            for (const s of this.state.sessions) {
+              const cleanTitle = (s.title || '').trim().toLowerCase()
+              const mentorKey = s.mentor?.id || s.mentor?.email || 'mentor'
+              const timeKey = s.startTime || ''
+              const dedupeKey = `${cleanTitle}__${mentorKey}__${timeKey}`
+              if (!seen.has(dedupeKey)) {
+                seen.add(dedupeKey)
+                uniqueSessions.push(s)
+              }
+            }
+            if (uniqueSessions.length !== this.state.sessions.length) {
+              this.state.sessions = uniqueSessions
+              this.saveState()
+            }
+          }
         }
       }
     } catch (e) {
@@ -609,9 +657,20 @@ class MockDataStore {
       },
     }
 
-    const existingIdx = this.state.sessions.findIndex((s) => String(s.id) === String(newSession.id))
+    // Deduplication check: prevent creating duplicate session with identical title, mentor, and start time
+    const duplicateIdx = this.state.sessions.findIndex((s) => {
+      const matchTitle = (s.title || '').trim().toLowerCase() === (newSession.title || '').trim().toLowerCase()
+      const matchMentor = (s.mentor?.id && newSession.mentor?.id && String(s.mentor.id) === String(newSession.mentor.id)) ||
+        (s.mentor?.email && newSession.mentor?.email && s.mentor.email.toLowerCase() === newSession.mentor.email.toLowerCase())
+      const matchTime = s.startTime && newSession.startTime && s.startTime === newSession.startTime
+      return matchTitle && matchMentor && matchTime
+    })
+
+    const existingIdx = duplicateIdx >= 0 ? duplicateIdx : this.state.sessions.findIndex((s) => String(s.id) === String(newSession.id))
     if (existingIdx >= 0) {
       this.state.sessions[existingIdx] = { ...this.state.sessions[existingIdx], ...newSession }
+      this.saveState()
+      return this.state.sessions[existingIdx]
     } else {
       this.state.sessions.unshift(newSession)
     }

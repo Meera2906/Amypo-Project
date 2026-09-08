@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { useSearchParams } from 'react-router-dom'
 import Modal from '../components/layout/Modal'
 import CapacityBar from '../components/layout/CapacityBar'
 import { createSession as createSessionThunk } from '../store/sessionSlice'
@@ -8,6 +9,7 @@ import * as subjectService from '../services/subjectService'
 import * as enrollmentService from '../services/enrollmentService'
 import { submitFeedback } from '../services/feedbackService'
 import mockStore from '../services/mockDataStore'
+import { getSubjectThumbnail } from '../utils/subjectImages'
 
 const statusColors = {
   SCHEDULED: 'badge-scheduled',
@@ -19,6 +21,7 @@ const statusColors = {
 function SessionList() {
   const dispatch = useDispatch()
   const user = useSelector((state) => state.auth.user)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [sessions, setSessions] = useState([])
   const [fetchedSubjects, setFetchedSubjects] = useState([])
   const [enrolledSessionIds, setEnrolledSessionIds] = useState(new Set())
@@ -29,6 +32,24 @@ function SessionList() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('DATE_ASC')
   const [selectedSubject, setSelectedSubject] = useState('ALL')
+
+  // Mentor dedicated tab state: 'MY_SESSIONS' vs 'ALL_SESSIONS'
+  const isMentor = user?.role === 'MENTOR'
+  const isLearner = !user || user.role === 'LEARNER'
+
+  const tabQuery = searchParams.get('tab')
+  const [mentorTab, setMentorTab] = useState(
+    tabQuery === 'all' ? 'ALL_SESSIONS' : 'MY_SESSIONS'
+  )
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'all') {
+      setMentorTab('ALL_SESSIONS')
+    } else if (tabParam === 'my' || tabParam === 'my-sessions') {
+      setMentorTab('MY_SESSIONS')
+    }
+  }, [searchParams])
 
   // Feedback Modal
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
@@ -76,82 +97,75 @@ function SessionList() {
     }
   }, [user])
 
-  const isMentor = user?.role === 'MENTOR'
-  const isLearner = !user || user.role === 'LEARNER'
-
   const fetchSessions = async () => {
     try {
       setLoading(true)
-      const mentorParam = isMentor ? user?.id : null
-      const response = await sessionService.getAll(0, 200, mentorParam)
+      const response = await sessionService.getAll(0, 200)
       const data = response?.content !== undefined
         ? response.content
         : (response?.data?.content !== undefined
           ? response.data.content
-          : (Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : mockStore.getSessions(mentorParam))))
-      setSessions(Array.isArray(data) && data.length > 0 ? data : mockStore.getSessions(mentorParam))
+          : (Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : mockStore.getSessions())))
+      setSessions(Array.isArray(data) && data.length > 0 ? data : mockStore.getSessions())
     } catch (err) {
-      setSessions(mockStore.getSessions(isMentor ? user?.id : null))
+      setSessions(mockStore.getSessions())
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchSubjects = async () => {
+  const loadAllData = async () => {
     try {
-      const response = await subjectService.getAll()
-      const data = response?.content !== undefined
-        ? response.content
-        : (response?.data !== undefined ? response.data : (Array.isArray(response) ? response : mockStore.getSubjects()))
-      if (Array.isArray(data) && data.length > 0) {
-        setFetchedSubjects(data)
-        setCreateForm((prev) => ({ ...prev, subject: { id: data[0].id } }))
-      }
-    } catch (e) {
-      setFetchedSubjects(mockStore.getSubjects())
-    }
-  }
+      setLoading(true)
+      const [sessionsRes, subjectsRes, enrollmentsRes] = await Promise.all([
+        sessionService.getAll(0, 200).catch(() => mockStore.getSessions()),
+        subjectService.getAll().catch(() => mockStore.getSubjects()),
+        (!user || user.role === 'LEARNER')
+          ? enrollmentService.getMyEnrollments(learnerId).catch(() => mockStore.getEnrollmentsForLearner(learnerId))
+          : Promise.resolve([]),
+      ])
 
-  const fetchLearnerEnrollments = async () => {
-    if (!user || user.role === 'LEARNER') {
-      try {
-        const enrollments = await enrollmentService.getMyEnrollments(learnerId)
-        const list = Array.isArray(enrollments) ? enrollments : (enrollments?.data || mockStore.getEnrollmentsForLearner(learnerId))
-        const activeList = list.filter((e) => {
-          const s = (e.status || '').toUpperCase()
-          const sessStatus = (e.sessionStatus || e.session?.status || '').toUpperCase()
-          return s === 'ENROLLED' || s === 'ATTENDED' || s === 'COMPLETED' || sessStatus === 'COMPLETED'
-        })
-        const ids = new Set(activeList.map((e) => Number(e.sessionId || e.session?.id)))
-        setEnrolledSessionIds(ids)
-        const submitted = new Set(
-          list
-            .filter((e) => e.feedbackSubmitted)
-            .map((e) => Number(e.sessionId || e.session?.id))
-        )
-        setFeedbackSubmittedIds(submitted)
-      } catch (e) {
-        const list = mockStore.getEnrollmentsForLearner(learnerId)
-        const activeList = list.filter((e) => {
-          const s = (e.status || '').toUpperCase()
-          const sessStatus = (e.sessionStatus || e.session?.status || '').toUpperCase()
-          return s === 'ENROLLED' || s === 'ATTENDED' || s === 'COMPLETED' || sessStatus === 'COMPLETED'
-        })
-        setEnrolledSessionIds(new Set(activeList.map((e) => Number(e.sessionId))))
-        const submitted = new Set(
-          list
-            .filter((e) => e.feedbackSubmitted)
-            .map((e) => Number(e.sessionId))
-        )
-        setFeedbackSubmittedIds(submitted)
+      const sData = sessionsRes?.content !== undefined
+        ? sessionsRes.content
+        : (sessionsRes?.data?.content !== undefined
+          ? sessionsRes.data.content
+          : (Array.isArray(sessionsRes?.data) ? sessionsRes.data : (Array.isArray(sessionsRes) ? sessionsRes : mockStore.getSessions())))
+      setSessions(Array.isArray(sData) && sData.length > 0 ? sData : mockStore.getSessions())
+
+      const subData = subjectsRes?.content !== undefined
+        ? subjectsRes.content
+        : (subjectsRes?.data !== undefined ? subjectsRes.data : (Array.isArray(subjectsRes) ? subjectsRes : mockStore.getSubjects()))
+      if (Array.isArray(subData) && subData.length > 0) {
+        setFetchedSubjects(subData)
+        setCreateForm((prev) => ({ ...prev, subject: { id: subData[0].id } }))
       }
+
+      if (!user || user.role === 'LEARNER') {
+        const enrollList = Array.isArray(enrollmentsRes) ? enrollmentsRes : (enrollmentsRes?.data || mockStore.getEnrollmentsForLearner(learnerId))
+        const activeList = Array.isArray(enrollList) ? enrollList.filter((e) => {
+          const s = (e.status || '').toUpperCase()
+          const sessStatus = (e.sessionStatus || e.session?.status || '').toUpperCase()
+          return s === 'ENROLLED' || s === 'ATTENDED' || s === 'COMPLETED' || sessStatus === 'COMPLETED'
+        }) : []
+        setEnrolledSessionIds(new Set(activeList.map((e) => Number(e.sessionId || e.session?.id))))
+        setFeedbackSubmittedIds(
+          new Set(
+            (Array.isArray(enrollList) ? enrollList : [])
+              .filter((e) => e.feedbackSubmitted)
+              .map((e) => Number(e.sessionId || e.session?.id))
+          )
+        )
+      }
+    } catch (err) {
+      setSessions(mockStore.getSessions())
+      setFetchedSubjects(mockStore.getSubjects())
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchSessions()
-    fetchSubjects()
-    fetchLearnerEnrollments()
+    loadAllData()
   }, [learnerId, user?.id, user?.role])
 
   const defaultSubjects = useMemo(() => [
@@ -167,6 +181,7 @@ function SessionList() {
   // Create Session
   const handleCreate = async (event) => {
     if (event && event.preventDefault) event.preventDefault()
+    if (actionLoading) return
     const title = (createForm.title || '').trim()
     if (!title) {
       setMessage({ type: 'error', text: 'Title is required' })
@@ -174,6 +189,7 @@ function SessionList() {
     }
 
     try {
+      setActionLoading(true)
       const mentorId = user?.id || 2
       const mentorFullName = user?.fullName || 'Bob Mentor'
       const mentorEmail = user?.email || 'mentor@loomlearn.com'
@@ -200,17 +216,8 @@ function SessionList() {
         },
       }
 
-      if (typeof sessionService.createSession === 'function' && sessionService.createSession !== sessionService.create) {
-        await sessionService.createSession(sessionData)
-      }
-      if (typeof sessionService.create === 'function') {
-        await sessionService.create(sessionData)
-      }
-      try {
-        if (typeof createSessionThunk === 'function') {
-          dispatch(createSessionThunk(sessionData))
-        }
-      } catch (e) {}
+      // Single authoritative create call
+      await sessionService.create(sessionData)
 
       setShowCreateModal(false)
       setMessage({ type: 'success', text: 'Session created successfully.' })
@@ -225,6 +232,8 @@ function SessionList() {
       await fetchSessions()
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Session creation failed' })
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -315,6 +324,9 @@ function SessionList() {
       if (selectedSession?.id === sessionId) {
         setSelectedSession((prev) => ({ ...prev, currentEnrollment: (prev.currentEnrollment || 0) + 1 }))
       }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('loom_enrollment_change', { detail: { sessionId, learnerId, action: 'ENROLL' } }))
+      }
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Enrollment failed' })
     } finally {
@@ -343,6 +355,9 @@ function SessionList() {
       )
       if (selectedSession?.id === sessionId && selectedSession.currentEnrollment > 0) {
         setSelectedSession((prev) => ({ ...prev, currentEnrollment: prev.currentEnrollment - 1 }))
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('loom_enrollment_change', { detail: { sessionId, learnerId, action: 'CANCEL' } }))
       }
       await fetchSessions()
       await fetchLearnerEnrollments()
@@ -411,9 +426,9 @@ function SessionList() {
   const filteredSessions = useMemo(() => {
     let list = [...sessions]
 
-    // 1. Role-based Mentor Isolation:
-    // If logged in as MENTOR, only load and display sessions taught by this mentor
-    if (isMentor) {
+    // 1. Role-based Mentor Tab Filter:
+    // If logged in as MENTOR and on 'MY_SESSIONS' tab, show only sessions taught by this mentor
+    if (isMentor && mentorTab === 'MY_SESSIONS') {
       list = list.filter((s) => isCurrentUserMentor(s))
     }
 
@@ -479,7 +494,15 @@ function SessionList() {
     })
 
     return list
-  }, [sessions, isMentor, user, filterStatus, selectedSubject, searchTerm, sortBy])
+  }, [sessions, isMentor, mentorTab, user, filterStatus, selectedSubject, searchTerm, sortBy])
+
+  const mySessionsCount = useMemo(() => {
+    return sessions.filter((s) => isCurrentUserMentor(s)).length
+  }, [sessions, user])
+
+  const allSessionsCount = useMemo(() => {
+    return sessions.length
+  }, [sessions])
 
   const formatDateTime = (dtStr) => {
     if (!dtStr) return 'Not scheduled'
@@ -491,9 +514,13 @@ function SessionList() {
     }
   }
 
-  const pageTitle = isMentor ? 'My Mentoring Sessions' : 'Tutoring Sessions'
+  const pageTitle = isMentor
+    ? (mentorTab === 'MY_SESSIONS' ? 'My Mentoring Sessions' : 'All Tutoring Sessions')
+    : 'Tutoring Sessions'
   const pageSubtitle = isMentor
-    ? `Sessions scheduled and taught by ${user?.fullName || 'you'}. Manage your schedules and classroom capacity.`
+    ? (mentorTab === 'MY_SESSIONS'
+        ? `Sessions scheduled and taught by ${user?.fullName || 'you'}. Manage your schedules and classroom capacity.`
+        : 'Explore all platform peer tutoring lessons across faculty mentors and subject areas.')
     : 'Explore peer tutoring lessons across faculty mentors, search topics, and enroll in interactive sessions.'
 
   return (
@@ -510,6 +537,107 @@ function SessionList() {
           + Add Session
         </button>
       </div>
+
+      {/* Mentor Specific Primary Tabs: My Sessions vs All Sessions */}
+      {isMentor && (
+        <div
+          className="mentor-session-tabs"
+          data-testid="mentor-session-tabs"
+          style={{
+            display: 'flex',
+            gap: '12px',
+            marginBottom: '20px',
+            paddingBottom: '4px',
+          }}
+        >
+          <button
+            type="button"
+            className={`mentor-tab-pill ${mentorTab === 'MY_SESSIONS' ? 'active' : ''}`}
+            data-testid="mentor-tab-my-sessions"
+            onClick={() => {
+              setMentorTab('MY_SESSIONS')
+              setSearchParams({ tab: 'my' })
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              borderRadius: '12px',
+              fontWeight: 600,
+              fontSize: '0.92rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              background: mentorTab === 'MY_SESSIONS' ? 'var(--color-royal-blue)' : 'rgba(23, 32, 90, 0.4)',
+              color: mentorTab === 'MY_SESSIONS' ? '#fff' : 'var(--text-secondary)',
+              border: '1px solid ' + (mentorTab === 'MY_SESSIONS' ? 'var(--color-vivid-blue)' : 'var(--glass-border)'),
+              boxShadow: mentorTab === 'MY_SESSIONS' ? '0 4px 16px rgba(66, 96, 229, 0.4)' : 'none',
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+              <path d="M6 12v5c3 3 9 3 12 0v-5" />
+            </svg>
+            <span>My Sessions</span>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: '999px',
+                background: mentorTab === 'MY_SESSIONS' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                color: '#fff',
+              }}
+            >
+              {mySessionsCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className={`mentor-tab-pill ${mentorTab === 'ALL_SESSIONS' ? 'active' : ''}`}
+            data-testid="mentor-tab-all-sessions"
+            onClick={() => {
+              setMentorTab('ALL_SESSIONS')
+              setSearchParams({ tab: 'all' })
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              borderRadius: '12px',
+              fontWeight: 600,
+              fontSize: '0.92rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              background: mentorTab === 'ALL_SESSIONS' ? 'var(--color-royal-blue)' : 'rgba(23, 32, 90, 0.4)',
+              color: mentorTab === 'ALL_SESSIONS' ? '#fff' : 'var(--text-secondary)',
+              border: '1px solid ' + (mentorTab === 'ALL_SESSIONS' ? 'var(--color-vivid-blue)' : 'var(--glass-border)'),
+              boxShadow: mentorTab === 'ALL_SESSIONS' ? '0 4px 16px rgba(66, 96, 229, 0.4)' : 'none',
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+            <span>All Sessions</span>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: '999px',
+                background: mentorTab === 'ALL_SESSIONS' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                color: '#fff',
+              }}
+            >
+              {allSessionsCount}
+            </span>
+          </button>
+        </div>
+      )}
 
       {message.text && (
         <div className={message.type === 'error' ? 'error-box' : 'message-box'} style={{ margin: '16px 0' }}>
@@ -702,7 +830,7 @@ function SessionList() {
 
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           Showing <strong style={{ color: '#fff' }}>{filteredSessions.length}</strong> session{filteredSessions.length === 1 ? '' : 's'}
-          {isMentor && ' (Assigned to you)'}
+          {isMentor && mentorTab === 'MY_SESSIONS' && ' (Assigned to you)'}
         </div>
       </div>
 
@@ -752,6 +880,7 @@ function SessionList() {
           const isCompleted = session.status === 'COMPLETED'
           const isEnrolled = enrolledSessionIds.has(Number(session.id))
           const isFull = (session.currentEnrollment || 0) >= (session.maxCapacity || 10)
+          const thumb = getSubjectThumbnail(session.subject?.name, session.title)
 
           return (
             <div
@@ -762,32 +891,54 @@ function SessionList() {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
-                padding: '22px',
+                padding: '16px',
                 position: 'relative',
+                borderRadius: '16px',
+                overflow: 'hidden',
                 transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
               }}
               onClick={() => handleOpenDetail(session)}
             >
-              {/* Top metadata */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                <span className={`badge ${statusColors[session.status] || 'badge-scheduled'}`}>
-                  {session.status}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--color-light-blue)',
-                    background: 'rgba(66, 96, 229, 0.15)',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(66, 96, 229, 0.3)',
-                  }}
-                >
-                  {session.subject?.name || 'General'}
-                </span>
+              {/* Subject Thumbnail Image Banner */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '140px',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  background: '#101424',
+                }}
+              >
+                <img
+                  src={thumb.url}
+                  alt={thumb.alt}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  loading="lazy"
+                />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12, 15, 29, 0.85) 0%, transparent 60%)' }} />
+                <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span className={`badge ${statusColors[session.status] || 'badge-scheduled'}`} style={{ fontSize: '0.7rem', padding: '2px 8px', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+                    {session.status}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      color: 'var(--color-light-blue)',
+                      background: 'rgba(12, 15, 29, 0.8)',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(66, 96, 229, 0.4)',
+                      backdropFilter: 'blur(4px)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {session.subject?.name || 'General'}
+                  </span>
+                </div>
               </div>
 
-              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-soft-white)' }}>
+              <h3 style={{ margin: 0, fontSize: '1.18rem', color: 'var(--color-soft-white)' }}>
                 {session.title}
               </h3>
 
@@ -1019,9 +1170,48 @@ function SessionList() {
           const isCompleted = selectedSession.status === 'COMPLETED'
           const isEnrolled = enrolledSessionIds.has(Number(selectedSession.id))
           const isFull = (selectedSession.currentEnrollment || 0) >= (selectedSession.maxCapacity || 10)
+          const modalThumb = getSubjectThumbnail(selectedSession.subject?.name, selectedSession.title)
 
           return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* Hero Image Banner in Detail Modal */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '180px',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  background: '#101424',
+                }}
+              >
+                <img
+                  src={modalThumb.url}
+                  alt={modalThumb.alt}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12, 15, 29, 0.95) 0%, rgba(12, 15, 29, 0.3) 60%)' }} />
+                <div style={{ position: 'absolute', bottom: '14px', left: '16px', right: '16px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      color: 'var(--color-lilac)',
+                      background: 'rgba(66, 96, 229, 0.35)',
+                      padding: '3px 10px',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(120, 132, 215, 0.4)',
+                      backdropFilter: 'blur(4px)',
+                    }}
+                  >
+                    {selectedSession.subject?.name || 'General'}
+                  </span>
+                  <h3 style={{ margin: '8px 0 0', fontSize: '1.3rem', color: '#fff' }}>
+                    {selectedSession.title}
+                  </h3>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '14px' }}>
                 <div>
                   <span className={`badge ${statusColors[selectedSession.status] || 'badge-scheduled'}`} style={{ fontSize: '0.85rem' }}>
@@ -1370,8 +1560,14 @@ function SessionList() {
             <button type="button" className="secondary-btn" onClick={() => setShowCreateModal(false)}>
               Cancel
             </button>
-            <button id="submit-create-session-btn" data-testid="submit-create-session-btn" type="submit" className="primary-btn btn-primary">
-              Create Session
+            <button
+              id="submit-create-session-btn"
+              data-testid="submit-create-session-btn"
+              type="submit"
+              className="primary-btn btn-primary"
+              disabled={actionLoading}
+            >
+              {actionLoading ? 'Scheduling...' : 'Create Session'}
             </button>
           </div>
         </form>

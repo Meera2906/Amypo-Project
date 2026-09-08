@@ -756,3 +756,445 @@
     border-radius: 18px;
   }
 }
+
+/* =========================================================
+   MY ENROLLMENTS DASHBOARD SECTION & HORIZONTAL CARDS
+   ========================================================= */
+
+.my-enrollments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.section-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.section-heading {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-soft-white);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-subheading {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.view-all-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(66, 96, 229, 0.12);
+  color: var(--color-soft-white);
+  border: 1px solid rgba(120, 132, 215, 0.35);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+}
+
+.view-all-action-btn:hover {
+  background: var(--color-vivid-blue);
+  color: #ffffff;
+  border-color: var(--color-vivid-blue);
+  box-shadow: 0 4px 14px rgba(66, 96, 229, 0.45);
+  transform: translateX(2px);
+}
+
+.view-all-action-btn .arrow-icon {
+  transition: transform 0.2s ease;
+}
+
+.view-all-action-btn:hover .arrow-icon {
+  transform: translateX(3px);
+}
+
+/* Horizontal Cards Grid */
+.enrollment-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 20px;
+}
+
+/* Compact Horizontal Enrollment Card */
+.enrollment-horizontal-card {
+  display: flex;
+  flex-direction: row;
+  height: 180px;
+  background: rgba(23, 32, 90, 0.28);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(120, 132, 215, 0.22);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0.5px rgba(248, 249, 250, 0.12);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease,
+              background 0.25s ease;
+  cursor: pointer;
+  position: relative;
+  outline: none;
+}
+
+.enrollment-horizontal-card:hover,
+.enrollment-horizontal-card:focus-visible {
+  transform: translateY(-3px);
+  background: rgba(30, 42, 110, 0.38);
+  border-color: rgba(181, 188, 239, 0.45);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(66, 96, 229, 0.25);
+}
+
+/* Card Thumbnail (38% width) */
+.card-thumb-wrapper {
+  flex: 0 0 38%;
+  position: relative;
+  overflow: hidden;
+  background: #111424;
+}
+
+.card-thumb-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.enrollment-horizontal-card:hover .card-thumb-image {
+  transform: scale(1.06);
+}
+
+.card-thumb-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(14, 15, 20, 0.1) 0%,
+    rgba(14, 15, 20, 0.7) 100%
+  );
+  pointer-events: none;
+}
+
+.card-thumb-badge-row {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  z-index: 2;
+}
+
+.card-subject-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-lilac);
+  background: rgba(14, 15, 20, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(120, 132, 215, 0.3);
+  padding: 2px 7px;
+  border-radius: 999px;
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Card Content (Right Side ~62%) */
+.card-content-wrapper {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-content-top {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.card-mentor-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.card-mentor-label .mentor-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-vivid-blue);
+  box-shadow: 0 0 6px var(--color-vivid-blue);
+  flex-shrink: 0;
+}
+
+.card-mentor-label .mentor-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-course-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-soft-white);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+/* Metadata Row with Icons */
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  border-top: 1px solid rgba(120, 132, 215, 0.12);
+  padding-top: 6px;
+}
+
+.card-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-meta-icon {
+  width: 12px;
+  height: 12px;
+  stroke: var(--color-periwinkle);
+  flex-shrink: 0;
+}
+
+/* Progress Section */
+.card-progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+}
+
+.card-progress-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.card-progress-percent {
+  color: var(--color-soft-white);
+  font-weight: 700;
+}
+
+.card-progress-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.card-progress-fill.active {
+  background: linear-gradient(90deg, var(--color-royal-blue), var(--color-vivid-blue));
+  box-shadow: 0 0 8px rgba(66, 96, 229, 0.6);
+}
+
+.card-progress-fill.completed {
+  background: linear-gradient(90deg, #059669, #10b981);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.card-progress-fill.cancelled {
+  background: #6b7280;
+}
+
+/* Actions Row in Card */
+.card-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(120, 132, 215, 0.12);
+}
+
+.card-actions-row .status-note {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.card-actions-row .status-note.completed {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.card-actions-row .status-note.cancelled {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.feedback-cta-btn {
+  background: linear-gradient(135deg, #d97706, #f59e0b) !important;
+  border: none !important;
+  padding: 4px 10px !important;
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35) !important;
+}
+
+.cancel-cta-btn {
+  padding: 3px 8px !important;
+  font-size: 0.74rem !important;
+  border-radius: 6px !important;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 900px) {
+  .enrollment-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .enrollment-horizontal-card {
+    height: auto;
+    min-height: 160px;
+    flex-direction: row;
+  }
+
+  .card-thumb-wrapper {
+    flex: 0 0 115px;
+  }
+
+  .card-subject-pill {
+    display: none;
+  }
+
+  .card-meta-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 440px) {
+  .enrollment-horizontal-card {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .card-thumb-wrapper {
+    flex: none;
+    height: 130px;
+    width: 100%;
+  }
+
+  .card-subject-pill {
+    display: inline-block;
+  }
+}
+
+/* ==========================================================================
+   MENTOR PRIMARY TABS & MY SESSIONS
+   ========================================================================== */
+.mentor-session-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mentor-tab-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  background: rgba(23, 32, 90, 0.35);
+  color: var(--text-secondary);
+  border: 1px solid var(--glass-border);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.mentor-tab-pill:hover {
+  background: rgba(66, 96, 229, 0.2);
+  border-color: rgba(120, 132, 215, 0.45);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.mentor-tab-pill.active {
+  background: var(--color-royal-blue);
+  color: #ffffff;
+  border-color: var(--color-vivid-blue);
+  box-shadow: 0 4px 18px rgba(66, 96, 229, 0.45);
+}
+
+.mentor-tab-pill.active:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(83, 115, 255, 0.55);
+}
+
+

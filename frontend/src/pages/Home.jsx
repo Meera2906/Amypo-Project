@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import StatCards from '../components/layout/StatCards'
 import SubjectChart from '../components/layout/SubjectChart'
 import Timeline from '../components/layout/Timeline'
+import EnrollmentCard from '../components/layout/EnrollmentCard'
 import { getStats } from '../services/userService'
 import { getAll as getAllSessions } from '../services/sessionService'
+import { getMyEnrollments } from '../services/enrollmentService'
 import mockStore from '../services/mockDataStore'
 
 function Home() {
@@ -13,6 +15,7 @@ function Home() {
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [recentSessions, setRecentSessions] = useState([])
+  const [enrollments, setEnrollments] = useState([])
   const [loading, setLoading] = useState(true)
 
   const storedUser = useMemo(() => {
@@ -29,29 +32,67 @@ function Home() {
   const isMentorPending = currentUser?.status === 'PENDING'
 
   useEffect(() => {
+    mockStore.syncFromStorage()
+    // Instantly hydrate default cache so the screen paints immediately
+    if (!stats) setStats(mockStore.getStats())
+    if (recentSessions.length === 0) setRecentSessions(mockStore.getSessions())
+    if (enrollments.length === 0) setEnrollments(mockStore.getEnrollmentsForLearner(currentUser?.id || 3))
+
     const fetchData = async () => {
       try {
-        const statsRes = await getStats()
-        const statsData = statsRes?.data !== undefined ? statsRes.data : statsRes
-        setStats(statsData)
+        const learnerId = currentUser?.id || 3
+        const [statsOutcome, sessionsOutcome, enrollmentsOutcome] = await Promise.allSettled([
+          getStats(),
+          getAllSessions(0, 50),
+          getMyEnrollments(learnerId),
+        ])
 
-        try {
-          const sessionsRes = await getAllSessions(0, 10)
-          const sessionList = sessionsRes?.content || (sessionsRes?.data?.content) || (Array.isArray(sessionsRes) ? sessionsRes : [])
-          setRecentSessions(sessionList)
-        } catch (sessErr) {
+        if (statsOutcome.status === 'fulfilled') {
+          const sRes = statsOutcome.value
+          const sData = sRes?.data !== undefined ? sRes.data : sRes
+          setStats(sData || mockStore.getStats())
+        } else {
+          setStats(mockStore.getStats())
+        }
+
+        if (sessionsOutcome.status === 'fulfilled') {
+          const sessRes = sessionsOutcome.value
+          const sessionList = sessRes?.content || sessRes?.data?.content || (Array.isArray(sessRes) ? sessRes : [])
+          setRecentSessions(sessionList.length > 0 ? sessionList : mockStore.getSessions())
+        } else {
           setRecentSessions(mockStore.getSessions())
+        }
+
+        if (enrollmentsOutcome.status === 'fulfilled') {
+          const enrollRes = enrollmentsOutcome.value
+          const enrollList = Array.isArray(enrollRes) ? enrollRes : (enrollRes?.data || mockStore.getEnrollmentsForLearner(learnerId))
+          setEnrollments(enrollList)
+        } else {
+          setEnrollments(mockStore.getEnrollmentsForLearner(learnerId))
         }
       } catch (error) {
         setStats(mockStore.getStats())
         setRecentSessions(mockStore.getSessions())
+        setEnrollments(mockStore.getEnrollmentsForLearner(currentUser?.id || 3))
       } finally {
         setLoading(false)
       }
     }
 
     fetchData()
-  }, [])
+
+    const handleSync = () => {
+      fetchData()
+    }
+
+    window.addEventListener('storage', handleSync)
+    window.addEventListener('loom_enrollment_change', handleSync)
+
+    return () => {
+      window.removeEventListener('storage', handleSync)
+      window.removeEventListener('loom_enrollment_change', handleSync)
+    }
+  }, [currentUser])
 
   // Role-specific KPI metrics
   const statCards = useMemo(() => {
@@ -83,10 +124,12 @@ function Home() {
       ]
     }
 
-    // Default Learner KPI metrics
-    const userEnrollments = mockStore.getEnrollmentsForLearner(currentUser?.id || 3)
-    const completedCount = userEnrollments.filter((e) => e.status === 'COMPLETED').length
-    const activeCount = userEnrollments.filter((e) => e.status === 'ENROLLED').length
+    // Default Learner KPI metrics (derived directly from live enrollments state)
+    const userEnrollments = enrollments.length > 0
+      ? enrollments
+      : mockStore.getEnrollmentsForLearner(currentUser?.id || 3)
+    const completedCount = userEnrollments.filter((e) => (e.status || '').toUpperCase() === 'COMPLETED' || (e.status || '').toUpperCase() === 'ATTENDED').length
+    const activeCount = userEnrollments.filter((e) => (e.status || '').toUpperCase() === 'ENROLLED').length
 
     return [
       { label: 'Enrolled Sessions', value: activeCount },
@@ -94,7 +137,7 @@ function Home() {
       { label: 'Available Subjects', value: stats.subjectStats?.length || 5 },
       { label: 'Approved Mentors', value: stats.approvedMentors ?? stats.totalMentors ?? 8 },
     ]
-  }, [stats, role, currentUser])
+  }, [stats, role, currentUser, enrollments])
 
   // Recent Platform Activity Timeline
   const activities = useMemo(() => {
@@ -141,6 +184,67 @@ function Home() {
 
     return items
   }, [stats, recentSessions])
+
+  // Mentor's assigned sessions
+  const mentorSessions = useMemo(() => {
+    if (role !== 'MENTOR') return []
+    const mId = currentUser?.id || 2
+    const mEmail = currentUser?.email?.toLowerCase().trim()
+    const all = recentSessions.length > 0 ? recentSessions : mockStore.getSessions()
+    return all.filter((s) => {
+      const matchId = mId != null && s.mentor?.id != null && String(s.mentor.id) === String(mId)
+      const matchEmail = Boolean(mEmail && s.mentor?.email && s.mentor.email.toLowerCase().trim() === mEmail)
+      return matchId || matchEmail
+    })
+  }, [recentSessions, role, currentUser])
+
+  const displayedMentorSessions = useMemo(() => {
+    return mentorSessions.slice(0, 4)
+  }, [mentorSessions])
+
+  const activeMentorSessionCount = useMemo(() => {
+    return mentorSessions.filter(
+      (s) => (s.status || '').toUpperCase() === 'ACTIVE' || (s.status || '').toUpperCase() === 'SCHEDULED'
+    ).length
+  }, [mentorSessions])
+
+  // Mentor's upcoming scheduled sessions timeline
+  const mentorScheduledActivities = useMemo(() => {
+    if (role !== 'MENTOR') return []
+    return [...mentorSessions]
+      .sort((a, b) => new Date(a.startTime || 0) - new Date(b.startTime || 0))
+      .map((sess) => ({
+        type: 'SESSION',
+        category: sess.status || 'SCHEDULED',
+        title: sess.title,
+        detail: `Subject: ${sess.subject?.name || 'Academic'} | Capacity: ${sess.currentEnrollment || 0}/${sess.maxCapacity || 10} Enrolled | Start: ${sess.startTime ? new Date(sess.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}`,
+        time: sess.startTime ? new Date(sess.startTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Upcoming',
+        badge: sess.status,
+        badgeClass: sess.status === 'ACTIVE' ? 'badge-active' : sess.status === 'COMPLETED' ? 'badge-approved' : 'badge-scheduled',
+      }))
+  }, [mentorSessions, role])
+
+  // Sort and pick top enrolled courses for dashboard view (Learner only)
+  const displayedEnrollments = useMemo(() => {
+    if (role !== 'LEARNER' && role) return []
+    if (!enrollments || enrollments.length === 0) return []
+    // Prioritize active (ENROLLED) sessions first, then COMPLETED, up to 4 cards
+    return [...enrollments]
+      .sort((a, b) => {
+        const order = { ENROLLED: 1, ATTENDED: 2, COMPLETED: 3, CANCELLED: 4 }
+        const statusA = (a.status || '').toUpperCase()
+        const statusB = (b.status || '').toUpperCase()
+        return (order[statusA] || 5) - (order[statusB] || 5)
+      })
+      .slice(0, 4)
+  }, [enrollments, role])
+
+  const activeEnrollmentCount = useMemo(() => {
+    if (role !== 'LEARNER' && role) return 0
+    return enrollments.filter(
+      (e) => (e.status || '').toUpperCase() === 'ENROLLED'
+    ).length
+  }, [enrollments, role])
 
   return (
     <div className="page container">
@@ -257,67 +361,323 @@ function Home() {
           {/* Key Metric KPI Cards */}
           <StatCards stats={statCards} />
 
-          {/* Bottom Section: Left = Student Enrollments per Subject, Right = Recent Platform Activity */}
+          {/* Learner Profile: My Enrollments Section */}
+          {role === 'LEARNER' && (
+            <div className="my-enrollments-section">
+              <div className="section-header-row">
+                <div className="section-title-wrap">
+                  <h3 className="section-heading">
+                    <span>My Enrollments</span>
+                    {activeEnrollmentCount > 0 && (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          color: 'var(--color-lilac)',
+                          background: 'rgba(66, 96, 229, 0.18)',
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                          border: '1px solid rgba(120, 132, 215, 0.3)',
+                        }}
+                      >
+                        {activeEnrollmentCount} Active
+                      </span>
+                    )}
+                  </h3>
+                  <p className="section-subheading">
+                    Continue where you left off in your enrolled peer learning courses
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="view-all-action-btn"
+                  onClick={() => navigate('/enrollments')}
+                  title="View all enrolled sessions"
+                >
+                  <span>View all</span>
+                  <span className="arrow-icon">&rarr;</span>
+                </button>
+              </div>
+
+              {/* Side-by-side compact horizontal cards */}
+              {displayedEnrollments.length > 0 ? (
+                <div className="enrollment-cards-grid">
+                  {displayedEnrollments.map((enrollment) => {
+                    const session = recentSessions.find(
+                      (s) => String(s.id) === String(enrollment.sessionId)
+                    )
+                    return (
+                      <EnrollmentCard
+                        key={enrollment.id}
+                        enrollment={enrollment}
+                        session={session}
+                        onClick={() => navigate('/enrollments')}
+                      />
+                    )
+                  })}
+                </div>
+              ) : (
+                <div
+                  className="empty-state"
+                  style={{
+                    padding: '36px 20px',
+                    background: 'rgba(23, 32, 90, 0.15)',
+                    borderRadius: '18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '12px',
+                  }}
+                >
+                  <p style={{ margin: 0, color: 'var(--color-soft-white)', fontSize: '1rem', fontWeight: 600 }}>
+                    No course enrollments yet
+                  </p>
+                  <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                    Explore scheduled peer tutoring sessions and reserve your seat to get started.
+                  </p>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    style={{ padding: '8px 20px', fontSize: '0.88rem', marginTop: '4px' }}
+                    onClick={() => navigate('/sessions')}
+                  >
+                    Browse Available Sessions &rarr;
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mentor Profile: My Sessions Section */}
+          {role === 'MENTOR' && (
+            <div className="my-enrollments-section my-sessions-section">
+              <div className="section-header-row">
+                <div className="section-title-wrap">
+                  <h3 className="section-heading">
+                    <span>My Sessions</span>
+                    {activeMentorSessionCount > 0 && (
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          color: 'var(--color-lilac)',
+                          background: 'rgba(66, 96, 229, 0.18)',
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                          border: '1px solid rgba(120, 132, 215, 0.3)',
+                        }}
+                      >
+                        {activeMentorSessionCount} Active
+                      </span>
+                    )}
+                  </h3>
+                  <p className="section-subheading">
+                    Manage and monitor your upcoming and active peer tutoring cohorts
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="view-all-action-btn"
+                  onClick={() => navigate('/sessions?tab=my')}
+                  title="View all your mentoring sessions"
+                >
+                  <span>View all</span>
+                  <span className="arrow-icon">&rarr;</span>
+                </button>
+              </div>
+
+              {/* Side-by-side compact horizontal cards */}
+              {displayedMentorSessions.length > 0 ? (
+                <div className="enrollment-cards-grid">
+                  {displayedMentorSessions.map((session) => (
+                    <EnrollmentCard
+                      key={session.id}
+                      session={session}
+                      isMentor={true}
+                      onClick={() => navigate('/sessions?tab=my')}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div
+                  className="empty-state"
+                  style={{
+                    padding: '36px 20px',
+                    background: 'rgba(23, 32, 90, 0.15)',
+                    borderRadius: '18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '12px',
+                  }}
+                >
+                  <p style={{ margin: 0, color: 'var(--color-soft-white)', fontSize: '1rem', fontWeight: 600 }}>
+                    No mentoring sessions scheduled yet
+                  </p>
+                  <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                    Create your first cohort session and invite peer learners to enroll.
+                  </p>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    style={{ padding: '8px 20px', fontSize: '0.88rem', marginTop: '4px' }}
+                    onClick={() => navigate('/sessions')}
+                  >
+                    + Schedule a Session &rarr;
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Bottom Section: Role-specific feeds */}
           <div
             className="dashboard-bottom-grid"
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gridTemplateColumns: role === 'ACADEMIC_ADMIN' ? 'repeat(auto-fit, minmax(360px, 1fr))' : '1fr',
               gap: '24px',
               marginTop: '24px',
             }}
           >
-            {/* Left: Student Enrollments per Subject */}
-            <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-soft-white)' }}>
-                    Student Enrollments per Subject
-                  </h3>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    Active learner engagement by subject curriculum
-                  </span>
+            {/* Academic Admin: Student Enrollments per Subject & Recent Activity */}
+            {role === 'ACADEMIC_ADMIN' && (
+              <>
+                <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-soft-white)' }}>
+                        Student Enrollments per Subject
+                      </h3>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                        Active learner engagement by subject curriculum
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--color-light-blue)',
+                        background: 'rgba(66, 96, 229, 0.15)',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      Live Metrics
+                    </span>
+                  </div>
+                  <SubjectChart data={stats?.subjectStats || mockStore.getStats().subjectStats} />
                 </div>
-                <span
-                  style={{
-                    fontSize: '0.78rem',
-                    color: 'var(--color-light-blue)',
-                    background: 'rgba(66, 96, 229, 0.15)',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                  }}
-                >
-                  Live Metrics
-                </span>
-              </div>
-              <SubjectChart data={stats?.subjectStats || mockStore.getStats().subjectStats} />
-            </div>
 
-            {/* Right: Recent Platform Activity Timeline */}
-            <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-soft-white)' }}>
-                    Recent Platform Activity
-                  </h3>
-                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    Joined events, session lifecycle updates, and feedback milestones
+                <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-soft-white)' }}>
+                        Recent Platform Activity
+                      </h3>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                        Joined events, session lifecycle updates, and feedback milestones
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.78rem',
+                        color: '#6ee7b7',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      Realtime
+                    </span>
+                  </div>
+                  <Timeline activities={activities} />
+                </div>
+              </>
+            )}
+
+            {/* Mentor: My Scheduled Tutoring Sessions Schedule (No SubjectChart) */}
+            {role === 'MENTOR' && (
+              <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-soft-white)' }}>
+                      My Scheduled Tutoring Schedule
+                    </h3>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      Upcoming cohort timetable, student capacity, and session agendas
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="view-all-action-btn"
+                    onClick={() => navigate('/sessions?tab=my')}
+                    style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+                  >
+                    <span>Manage All</span>
+                    <span className="arrow-icon">&rarr;</span>
+                  </button>
+                </div>
+
+                {mentorScheduledActivities.length > 0 ? (
+                  <Timeline activities={mentorScheduledActivities} />
+                ) : (
+                  <div className="empty-state" style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    <p style={{ margin: '0 0 8px', color: '#fff', fontWeight: 600 }}>No upcoming sessions scheduled</p>
+                    <p style={{ margin: '0 0 16px', fontSize: '0.88rem' }}>Create your first cohort session and invite learners to participate.</p>
+                    <button type="button" className="primary-btn" onClick={() => navigate('/sessions')}>
+                      + Schedule a Session &rarr;
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Learner: Learning Activity & Milestones (No SubjectChart) */}
+            {role === 'LEARNER' && (
+              <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-soft-white)' }}>
+                      Learning Activity & Milestones
+                    </h3>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      Track your enrolled lesson attendances, schedules, and reviews
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.78rem',
+                      color: '#6ee7b7',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    Personalized
                   </span>
                 </div>
-                <span
-                  style={{
-                    fontSize: '0.78rem',
-                    color: '#6ee7b7',
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                  }}
-                >
-                  Realtime
-                </span>
+                <Timeline activities={activities} />
               </div>
-              <Timeline activities={activities} />
-            </div>
+            )}
+
+            {/* Support Agent: Reviews & Feedback timeline */}
+            {role === 'SUPPORT_AGENT' && (
+              <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--color-soft-white)' }}>
+                      Support & Activity Timeline
+                    </h3>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      Platform student feedback and mentor performance
+                    </span>
+                  </div>
+                </div>
+                <Timeline activities={activities} />
+              </div>
+            )}
           </div>
         </>
       )}

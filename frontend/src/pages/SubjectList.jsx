@@ -5,6 +5,7 @@ import Modal from '../components/layout/Modal'
 import { getAll, create, update, deleteSubject } from '../services/subjectService'
 import { getAll as getAllSessions } from '../services/sessionService'
 import mockStore from '../services/mockDataStore'
+import { getSubjectThumbnail } from '../utils/subjectImages'
 
 function SubjectList() {
   const user = useSelector((state) => state.auth.user)
@@ -265,57 +266,79 @@ function SubjectList() {
           <div className="subject-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '22px' }}>
             {subjects.map((subject) => {
               const activeCount = activeSessionsCount[subject.id] || activeSessionsCount[subject.name] || 0
+              const thumb = getSubjectThumbnail(subject.name)
 
               return (
                 <div
                   key={subject.id || subject.name}
                   className="card subject-card"
                   style={{
-                    padding: '22px',
+                    padding: '16px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '12px',
                     position: 'relative',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
                     transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                    <div>
-                      <h3 style={{ margin: '0 0 4px', fontSize: '1.2rem', color: 'var(--color-soft-white)' }}>
-                        {subject.name}
-                      </h3>
+                  {/* Subject Image Thumbnail */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      height: '140px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      background: '#101424',
+                    }}
+                  >
+                    <img
+                      src={thumb.url}
+                      alt={thumb.alt}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      loading="lazy"
+                    />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12, 15, 29, 0.85) 0%, transparent 60%)' }} />
+                    <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                       <span
                         style={{
-                          display: 'inline-block',
-                          fontSize: '0.74rem',
+                          fontSize: '0.72rem',
                           fontWeight: 600,
                           padding: '2px 8px',
-                          borderRadius: '12px',
-                          background: 'rgba(66, 96, 229, 0.18)',
+                          borderRadius: '6px',
+                          background: 'rgba(23, 32, 90, 0.8)',
                           color: 'var(--color-light-blue)',
-                          border: '1px solid rgba(66, 96, 229, 0.3)',
+                          border: '1px solid rgba(66, 96, 229, 0.4)',
+                          backdropFilter: 'blur(4px)',
                         }}
                       >
                         {subject.level || 'All Levels'}
                       </span>
                     </div>
-
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
                       <span
                         style={{
-                          display: 'inline-block',
-                          fontSize: '0.75rem',
-                          padding: '3px 8px',
-                          borderRadius: '10px',
-                          background: activeCount > 0 ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                          color: activeCount > 0 ? '#6ee7b7' : 'var(--text-secondary)',
-                          border: `1px solid ${activeCount > 0 ? 'rgba(52, 211, 153, 0.3)' : 'var(--glass-border)'}`,
+                          fontSize: '0.72rem',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          background: activeCount > 0 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(12, 15, 29, 0.75)',
+                          color: '#fff',
+                          border: '1px solid ' + (activeCount > 0 ? 'rgba(52, 211, 153, 0.5)' : 'rgba(255,255,255,0.2)'),
                           fontWeight: 600,
+                          backdropFilter: 'blur(4px)',
                         }}
                       >
                         {activeCount} Active Session{activeCount !== 1 ? 's' : ''}
                       </span>
                     </div>
+                  </div>
+
+                  <div>
+                    <h3 style={{ margin: '0 0 4px', fontSize: '1.2rem', color: 'var(--color-soft-white)' }}>
+                      {subject.name}
+                    </h3>
                   </div>
 
                   <p
@@ -555,9 +578,48 @@ function SubjectList() {
       <Modal isOpen={showDetailModal} onClose={() => setShowDetailModal(false)} title={selectedSubject?.name || 'Subject Syllabus'}>
         {selectedSubject && (() => {
           const activeCount = activeSessionsCount[selectedSubject.id] || activeSessionsCount[selectedSubject.name] || 0
+          const modalThumb = getSubjectThumbnail(selectedSubject.name)
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* Hero Image Banner in Detail Modal */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '180px',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  background: '#101424',
+                }}
+              >
+                <img
+                  src={modalThumb.url}
+                  alt={modalThumb.alt}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12, 15, 29, 0.95) 0%, rgba(12, 15, 29, 0.3) 60%)' }} />
+                <div style={{ position: 'absolute', bottom: '14px', left: '16px', right: '16px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      color: 'var(--color-lilac)',
+                      background: 'rgba(66, 96, 229, 0.35)',
+                      padding: '3px 10px',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(120, 132, 215, 0.4)',
+                      backdropFilter: 'blur(4px)',
+                    }}
+                  >
+                    {selectedSubject.level || 'All Levels'}
+                  </span>
+                  <h3 style={{ margin: '8px 0 0', fontSize: '1.3rem', color: '#fff' }}>
+                    {selectedSubject.name}
+                  </h3>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '12px' }}>
                 <div>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Proficiency Level</span>

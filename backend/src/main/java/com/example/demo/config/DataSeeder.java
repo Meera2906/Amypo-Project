@@ -51,6 +51,7 @@ public class DataSeeder implements CommandLineRunner {
         StudySubject math = seedSubject("Mathematics", "Linear algebra, calculus, and discrete mathematical structures.");
         StudySubject physics = seedSubject("Physics", "Study of mechanics, electromagnetism, and modern quantum physics.");
         StudySubject chemistry = seedSubject("Chemistry", "Organic reactions, physical chemistry principles, and molecular structures.");
+        seedSubject("English", "Academic essay writing, rhetorical strategies, literary analysis, and professional communication.");
 
         // 2. Seed Admin & Support Users
         if (!userRepository.existsByEmail("admin@loomlearn.com")) {

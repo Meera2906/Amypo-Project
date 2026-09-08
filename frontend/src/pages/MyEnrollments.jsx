@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import Modal from '../components/layout/Modal'
+import EnrollmentCard from '../components/layout/EnrollmentCard'
 import { getMyEnrollments, cancelEnrollment } from '../services/enrollmentService'
 import { submitFeedback } from '../services/feedbackService'
 import mockStore from '../services/mockDataStore'
+import { getSubjectThumbnail } from '../utils/subjectImages'
 
 function MyEnrollments() {
   const user = useSelector((state) => state.auth.user)
@@ -84,6 +86,9 @@ function MyEnrollments() {
       await cancelEnrollment(learnerId, sessionId)
       setMessage({ type: 'success', text: 'Enrollment cancelled successfully.' })
       setShowDetailModal(false)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('loom_enrollment_change', { detail: { sessionId, learnerId, action: 'CANCEL' } }))
+      }
       await loadData()
     } catch (error) {
       setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to cancel enrollment.' })
@@ -363,171 +368,19 @@ function MyEnrollments() {
 
       {/* CARDS VIEW */}
       {!loading && enrollments.length > 0 && viewMode === 'CARDS' && (
-        <div className="session-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '22px', marginTop: '16px' }}>
+        <div className="enrollment-cards-grid" style={{ marginTop: '16px' }}>
           {enrollments.map((enrollment) => {
             const title = enrollment.sessionTitle || enrollment.session?.title || 'Tutoring Session'
-            const mentor = enrollment.mentorName || enrollment.session?.mentor?.fullName || 'Faculty Mentor'
-            const subject = enrollment.subjectName || enrollment.session?.subject?.name || 'General'
-            const status = resolveStatus(enrollment)
-            const isCancelled = status === 'CANCELLED'
-            const isCompleted = status === 'COMPLETED'
-            const isEnrolled = status === 'ENROLLED'
-            const feedbackSubmitted = !!enrollment.feedbackSubmitted
-
             return (
-              <div
+              <EnrollmentCard
                 key={enrollment.id}
-                className="session-card"
-                style={{
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '14px',
-                  padding: '22px',
-                  position: 'relative',
-                  transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-                }}
+                enrollment={enrollment}
+                session={enrollment.session}
                 onClick={() => handleOpenDetail(enrollment)}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                  <span className={`badge ${getStatusBadge(status)}`}>
-                    {status}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '0.74rem',
-                      color: 'var(--color-light-blue)',
-                      background: 'rgba(66, 96, 229, 0.15)',
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      border: '1px solid rgba(66, 96, 229, 0.3)',
-                    }}
-                  >
-                    {subject}
-                  </span>
-                </div>
-
-                <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-soft-white)' }}>
-                  {title}
-                </h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.86rem', color: 'var(--color-soft-white)' }}>
-                  <div>
-                    <span style={{ color: 'var(--text-secondary)' }}>Mentor: </span>
-                    <strong>{mentor}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--text-secondary)' }}>Start: </span>
-                    <span>{formatDateTime(enrollment.sessionStartTime || enrollment.session?.startTime)}</span>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--text-secondary)' }}>End: </span>
-                    <span>{formatDateTime(enrollment.sessionEndTime || enrollment.session?.endTime)}</span>
-                  </div>
-                </div>
-
-                {/* Actions Row */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingTop: '12px',
-                    marginTop: 'auto',
-                    borderTop: '1px solid var(--glass-border)',
-                    flexWrap: 'wrap',
-                    gap: '8px',
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-light-blue)',
-                      fontSize: '0.84rem',
-                      cursor: 'pointer',
-                      padding: 0,
-                      textDecoration: 'underline',
-                    }}
-                    onClick={() => handleOpenDetail(enrollment)}
-                  >
-                    View Details &rarr;
-                  </button>
-
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {isCancelled ? (
-                      <span
-                        style={{
-                          fontSize: '0.78rem',
-                          color: '#fca5a5',
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          fontWeight: 500,
-                        }}
-                      >
-                        Cancelled
-                      </span>
-                    ) : isEnrolled ? (
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span
-                          style={{
-                            fontSize: '0.78rem',
-                            color: 'var(--color-light-blue)',
-                            background: 'rgba(66, 96, 229, 0.12)',
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid rgba(66, 96, 229, 0.25)',
-                          }}
-                        >
-                          Enrolled
-                        </span>
-                        <button
-                          type="button"
-                          className="action-btn delete"
-                          style={{ padding: '3px 8px', fontSize: '0.75rem' }}
-                          onClick={() => handleCancel(enrollment.sessionId || enrollment.id, title)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : isCompleted ? (
-                      feedbackSubmitted ? (
-                        <span
-                          style={{
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
-                            color: '#34d399',
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                          }}
-                        >
-                          Feedback Submitted
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="primary-btn"
-                          style={{
-                            background: 'linear-gradient(135deg, #d97706, #f59e0b)',
-                            border: 'none',
-                            padding: '5px 12px',
-                            fontSize: '0.8rem',
-                          }}
-                          onClick={() => handleOpenFeedback(enrollment)}
-                        >
-                          Give Feedback
-                        </button>
-                      )
-                    ) : null}
-                  </div>
-                </div>
-              </div>
+                onCancel={(sessionId) => handleCancel(sessionId, title)}
+                onFeedback={(enr) => handleOpenFeedback(enr)}
+                showActions={true}
+              />
             )
           })}
         </div>
@@ -544,9 +397,48 @@ function MyEnrollments() {
           const isCompleted = status === 'COMPLETED'
           const isEnrolled = status === 'ENROLLED'
           const feedbackSubmitted = !!selectedEnrollment.feedbackSubmitted
+          const modalThumb = getSubjectThumbnail(subject, title)
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* Hero Image Banner in Detail Modal */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '180px',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  background: '#101424',
+                }}
+              >
+                <img
+                  src={modalThumb.url}
+                  alt={modalThumb.alt}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(12, 15, 29, 0.95) 0%, rgba(12, 15, 29, 0.3) 60%)' }} />
+                <div style={{ position: 'absolute', bottom: '14px', left: '16px', right: '16px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      color: 'var(--color-lilac)',
+                      background: 'rgba(66, 96, 229, 0.35)',
+                      padding: '3px 10px',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(120, 132, 215, 0.4)',
+                      backdropFilter: 'blur(4px)',
+                    }}
+                  >
+                    {subject}
+                  </span>
+                  <h3 style={{ margin: '8px 0 0', fontSize: '1.3rem', color: '#fff' }}>
+                    {title}
+                  </h3>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '12px' }}>
                 <span className={`badge ${getStatusBadge(status)}`}>
                   Enrollment Status: {status}
