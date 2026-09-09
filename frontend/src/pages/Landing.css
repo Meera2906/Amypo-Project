@@ -1,0 +1,883 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LoomLearn Cinematic Scroll Canvas Experience — Landing.css
+   Direct-on-frame typography (no backplate), iPhone hello animation,
+   split corners, moving text, and spatial holographic HUD
+═══════════════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Caacupe+One&family=Bonheur+Royale&display=swap');
+
+/* ── Root Landing Layout ─────────────────────────────────────────────────── */
+.ll-landing {
+  position: relative;
+  background: #000000;
+  font-family: 'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #ffffff;
+  overflow: visible;
+  user-select: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRELOADER
+═══════════════════════════════════════════════════════════════════════════ */
+.ll-loader {
+  position: fixed;
+  inset: 0;
+  background: #06070a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.ll-loader__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.ll-loader__logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #ffffff;
+  text-shadow: 0 0 35px rgba(66, 96, 229, 0.9);
+}
+
+.ll-loader__bar-wrap {
+  width: 280px;
+  height: 4px;
+  background: rgba(120, 132, 215, 0.2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.ll-loader__bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4260e5, #60a5fa, #93c5fd);
+  border-radius: 99px;
+  transition: width 0.15s ease-out;
+  box-shadow: 0 0 16px rgba(66, 96, 229, 0.9);
+}
+
+.ll-loader__label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #b5bcef;
+  letter-spacing: 0.05em;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STICKY NAV BAR
+═══════════════════════════════════════════════════════════════════════════ */
+.ll-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 48px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.75) 0%, transparent 100%);
+  pointer-events: auto;
+}
+
+.ll-nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: #ffffff;
+  cursor: pointer;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9), 0 0 20px rgba(66, 96, 229, 0.8);
+}
+
+.ll-nav__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #60a5fa;
+  box-shadow: 0 0 12px #60a5fa, 0 0 24px rgba(96, 165, 250, 0.9);
+}
+
+.ll-nav__links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ll-nav__stage-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 99px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  transition: all 0.2s ease;
+}
+
+.ll-nav__stage-btn:hover {
+  color: #ffffff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
+}
+
+.ll-nav__stage-btn--active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  text-shadow: 0 0 12px rgba(96, 165, 250, 0.9);
+}
+
+.ll-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUTTONS (High contrast directly on frame)
+═══════════════════════════════════════════════════════════════════════════ */
+.ll-btn-primary {
+  padding: 11px 24px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 25px rgba(29, 78, 216, 0.6), 0 0 15px rgba(59, 130, 246, 0.4);
+}
+
+.ll-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 35px rgba(37, 99, 235, 0.8), 0 0 25px rgba(96, 165, 250, 0.7);
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
+}
+
+.ll-btn-primary--lg {
+  padding: 14px 30px;
+  font-size: 1.02rem;
+  border-radius: 14px;
+}
+
+.ll-btn-ghost {
+  padding: 11px 24px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ll-btn-ghost:hover {
+  color: #ffffff;
+  border-color: #93c5fd;
+  background: rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.6);
+}
+
+.ll-btn-ghost--lg {
+  padding: 14px 30px;
+  font-size: 1.02rem;
+  border-radius: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CINEMATIC SCROLL ZONE
+═══════════════════════════════════════════════════════════════════════════ */
+.ll-scroll-zone {
+  height: 580vh;
+  position: relative;
+}
+
+.ll-frame-sticky {
+  position: sticky;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background: #000000;
+}
+
+.ll-scroll-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 1;
+}
+
+.ll-frame-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.65) 100%);
+}
+
+/* Spotlight Backdrop Dimmer (Stage 4) */
+.ll-spotlight-dimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 50%,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.95) 100%
+  );
+  backdrop-filter: brightness(0.28) contrast(1.2);
+  opacity: 0;
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ll-spotlight-dimmer--active {
+  opacity: 1;
+}
+
+/* Common visibility helper for direct-on-frame typography */
+.ll-direct--visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STAGE 1 (Frames 0–9): SPLIT TEXT (TOP-LEFT + BOTTOM-RIGHT)
+   Directly on the café hero frame without any backplate box
+═══════════════════════════════════════════════════════════════════════════ */
+.ll-direct-tl {
+  position: absolute;
+  top: 110px;
+  left: 54px;
+  max-width: 580px;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.ll-direct-eyebrow {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #93c5fd;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 16px rgba(59, 130, 246, 0.8);
+  margin-bottom: 12px;
+}
+
+.ll-direct-title {
+  font-size: clamp(2.4rem, 4.2vw, 3.6rem);
+  font-weight: 900;
+  line-height: 1.15;
+  color: #ffffff;
+  margin: 0 0 16px;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.95), 0 2px 10px rgba(0, 0, 0, 0.98);
+}
+
+/* Custom fonts requested by user */
+.ll-font-peer-learning {
+  font-family: 'Caacupe One', cursive, sans-serif;
+  letter-spacing: 0.02em;
+  display: inline-block;
+}
+
+.ll-font-engineered {
+  font-family: 'Bonheur Royale', cursive;
+  font-size: 1.4em;
+  font-weight: 400;
+  display: inline-block;
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+}
+
+.ll-text-glow-blue {
+  color: #60a5fa;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.95), 0 0 30px rgba(96, 165, 250, 0.9);
+}
+
+.ll-direct-sub {
+  font-size: 1.05rem;
+  color: #f1f5f9;
+  line-height: 1.65;
+  margin: 0;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.95), 0 1px 6px rgba(0, 0, 0, 0.98);
+  font-weight: 500;
+}
+
+/* Stage 1: Bottom-Right Corner Actions */
+.ll-direct-br {
+  position: absolute;
+  bottom: 50px;
+  right: 54px;
+  text-align: right;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.ll-live-pulse-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #6ee7b7;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.95), 0 0 14px rgba(16, 185, 129, 0.8);
+}
+
+.ll-pulse-circle {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #34d399, 0 0 20px #10b981;
+  animation: liveBlink 1.6s ease-in-out infinite;
+}
+
+@keyframes liveBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.3; transform: scale(0.75); }
+}
+
+.ll-direct-actions {
+  display: flex;
+  gap: 14px;
+}
+
+.ll-direct-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #93c5fd;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
+}
+
+.ll-scroll-arrow {
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid #60a5fa;
+  border-bottom: 2px solid #60a5fa;
+  transform: rotate(45deg);
+  animation: arrowBounce 1.4s ease-in-out infinite;
+}
+
+@keyframes arrowBounce {
+  0%, 100% { transform: rotate(45deg) translateY(0); opacity: 0.4; }
+  50%       { transform: rotate(45deg) translateY(4px); opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STAGE 2 (Frames 4–7): MOVING TEXT FROM RIGHT TO LEFT AS WE SCROLL
+   Directly on the floating zero-gravity matcha frame (no backplate)
+═══════════════════════════════════════════════════════════════════════════ */
+.ll-moving-marquee-wrap {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  will-change: transform;
+}
+
+.ll-moving-marquee-inner {
+  text-align: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.ll-moving-badge {
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: #93c5fd;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 18px rgba(59, 130, 246, 0.9);
+  margin-bottom: 12px;
+}
+
+.ll-moving-title {
+  font-size: clamp(2rem, 3.8vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.2;
+  color: #ffffff;
+  margin: 0 0 12px;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.98), 0 2px 12px rgba(0, 0, 0, 0.98);
+}
+
+.ll-moving-desc {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #bfdbfe;
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.95), 0 0 20px rgba(37, 99, 235, 0.6);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT GLASSMORPHIC BACKLAYS
+   Ultra-premium frosted glass with specular highlight & ambient glow
+═══════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT GLASSMORPHIC TEXT OUTLINES
+   Directly outlines the text itself rather than being a separate container box
+═══════════════════════════════════════════════════════════════════════════ */
+.ll-title-outline-wrap {
+  margin-bottom: 16px;
+}
+
+.ll-headline-outline-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.ll-hud-title-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.ll-moving-title-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+/* Glassmorphic outline that directly hugs text content */
+.ll-text-glass-outline {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-top: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 20px;
+  box-shadow:
+    0 12px 30px -8px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 25px rgba(56, 189, 248, 0.12);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Stage 1: Peer Learning title outline */
+.ll-direct-title.ll-text-glass-outline {
+  padding: 14px 28px;
+  border-radius: 24px;
+  margin: 0;
+}
+
+/* Stage 2: Moving Marquee text outline (activates when completely in frame) */
+.ll-moving-title--glass {
+  display: inline-block;
+  padding: 12px 32px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  background: transparent;
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  margin: 0;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ll-moving-title--glass.ll-moving-title--active {
+  background: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 16px 40px -10px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.4),
+    0 0 35px rgba(96, 165, 250, 0.25);
+}
+
+/* Stage 3: Concurrency headline outline */
+.hello__headline.ll-text-glass-outline {
+  padding: 8px 24px;
+  border-radius: 99px;
+  margin: 0;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STAGE 3 (Frames 21–30): IPHONE-STYLE CURSIVE CONCURRENCY ANIMATION
+   Directly on the vibrant fluid wipe transition frame
+═══════════════════════════════════════════════════════════════════════════ */
+.hello__div {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  margin: 0 auto;
+  text-align: center;
+  width: 100%;
+  max-width: 860px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hello__div--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hello__svg-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 740px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.hello__svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 45px rgba(56, 189, 248, 0.65));
+}
+
+.hello__path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 12px;
+  stroke-dasharray: 1.02;
+  stroke-dashoffset: 1.02;
+  transition: stroke-dashoffset 2.4s cubic-bezier(0.42, 0, 0.25, 1);
+}
+
+.hello__div--active .hello__path {
+  stroke-dashoffset: 0;
+}
+
+.hello__subtitle-wrap {
+  margin-top: 14px;
+  opacity: 0;
+  transform: translateY(20px);
+  filter: blur(8px);
+  transition: all 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.75s;
+}
+
+.hello__div--active .hello__subtitle-wrap {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+.hello__tag {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: #6ee7b7;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 16px rgba(16, 185, 129, 0.8);
+  margin-bottom: 8px;
+}
+
+.hello__headline {
+  font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 6px;
+  text-shadow: 0 3px 20px rgba(0, 0, 0, 0.95), 0 0 25px rgba(56, 189, 248, 0.5);
+}
+
+.hello__body {
+  font-size: 0.95rem;
+  color: #ecfdf5;
+  font-weight: 500;
+  margin: 0;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.95);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STAGE 4 (Frames 31–40): SPATIAL HUD WITH SPOTLIGHT & DIMMED BACKGROUND
+   Directly on the full-screen LoomLearn tablet dashboard
+═══════════════════════════════════════════════════════════════════════════ */
+.ll-spatial-hud {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 900px;
+  text-align: center;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Theatrical Spotlight Cone & Glow focused directly on the text */
+.ll-hud-spotlight-container {
+  position: absolute;
+  inset: -260px -100px;
+  pointer-events: none;
+  z-index: -1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ll-spotlight-cone {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 1px;
+  border-left: 460px solid transparent;
+  border-right: 460px solid transparent;
+  border-top: 780px solid rgba(56, 189, 248, 0.16);
+  filter: blur(45px);
+  opacity: 0;
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ll-spotlight-center-glow {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 840px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(56, 189, 248, 0.36) 0%,
+    rgba(99, 102, 241, 0.20) 35%,
+    rgba(14, 165, 233, 0.08) 60%,
+    transparent 75%
+  );
+  filter: blur(40px);
+  opacity: 0;
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: spotlightBreathe 4s ease-in-out infinite alternate;
+}
+
+.ll-spatial-hud.ll-direct--visible .ll-spotlight-cone,
+.ll-spatial-hud.ll-direct--visible .ll-spotlight-center-glow {
+  opacity: 1;
+}
+
+@keyframes spotlightBreathe {
+  0%   { transform: translate(-50%, -50%) scale(0.94); opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+}
+
+.ll-hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: #38bdf8;
+  padding: 6px 16px;
+  border-radius: 99px;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  text-shadow: 0 0 16px rgba(56, 189, 248, 0.9);
+  margin-bottom: 16px;
+}
+
+.ll-hud-pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 10px #38bdf8;
+}
+
+.ll-hud-title {
+  font-size: clamp(2.3rem, 3.8vw, 3.4rem);
+  font-weight: 900;
+  line-height: 1.15;
+  color: #ffffff;
+  margin: 0 0 18px;
+  min-height: 2.3em;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  text-shadow:
+    0 0 30px rgba(255, 255, 255, 0.75),
+    0 0 65px rgba(56, 189, 248, 0.9),
+    0 4px 30px rgba(0, 0, 0, 0.98);
+  position: relative;
+  z-index: 2;
+}
+
+/* Stage 4 Typewriter cursor */
+.ll-typewriter-cursor {
+  display: inline-block;
+  font-weight: 300;
+  margin-left: 3px;
+  color: rgba(255, 255, 255, 0.9);
+  animation: cursorBlink 0.75s ease-in-out infinite;
+  vertical-align: baseline;
+}
+
+.ll-typewriter-cursor--cyan {
+  color: #38bdf8;
+  text-shadow: 0 0 16px #38bdf8, 0 0 32px rgba(56, 189, 248, 0.8);
+}
+
+.ll-typewriter-cursor--blink {
+  animation: cursorBlink 1s ease-in-out infinite;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+.ll-text-glow-cyan {
+  color: #38bdf8;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.98), 0 0 45px rgba(56, 189, 248, 1);
+}
+
+/* Floating Metrics Bar */
+.ll-hud-metrics {
+  display: inline-flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 24px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(14px);
+  margin-bottom: 22px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+.ll-hud-metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ll-hud-metric-val {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
+}
+
+.ll-hud-metric-lbl {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ll-hud-metric-separator {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.ll-hud-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN
+═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .ll-nav {
+    padding: 12px 20px;
+  }
+  .ll-nav__links {
+    display: none;
+  }
+  .ll-direct-tl {
+    top: 80px;
+    left: 20px;
+    right: 20px;
+    max-width: none;
+  }
+  .ll-direct-br {
+    bottom: 30px;
+    left: 20px;
+    right: 20px;
+    align-items: center;
+    text-align: center;
+  }
+  .ll-direct-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  .ll-direct-actions button {
+    width: 100%;
+  }
+  .ll-hud-actions {
+    flex-direction: column;
+    padding: 0 20px;
+  }
+  .ll-hud-actions button {
+    width: 100%;
+  }
+  .ll-hud-metrics {
+    gap: 12px;
+    padding: 8px 16px;
+  }
+}

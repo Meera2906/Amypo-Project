@@ -7,6 +7,7 @@ import mockStore from './services/mockDataStore'
 import Navbar from './components/layout/Navbar'
 import DotField from './components/DotField'
 import Home from './pages/Home'
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import SessionList from './pages/SessionList'
@@ -50,9 +51,11 @@ function AppRoutes() {
   if (!token) {
     return (
       <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/landing" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
   }
